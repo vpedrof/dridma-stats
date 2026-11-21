@@ -93,6 +93,24 @@ st.markdown("""
         .dridma-kpis { gap: 6px; }
         .dridma-kpi { border-radius: 9px; padding: 12px 3px; }
     }
+    /* Ajuste fino V4.3: reducir separación entre pestañas. */
+    div[data-testid="stTabs"] [data-baseweb="tab-list"] {
+        gap: 0 !important;
+        column-gap: 0 !important;
+    }
+    div[data-testid="stTabs"] button[data-baseweb="tab"] {
+        padding: 8px 2px !important;
+        margin: 0 !important;
+        min-width: 0 !important;
+        font-size: 11px !important;
+        letter-spacing: -0.3px !important;
+        white-space: nowrap !important;
+    }
+    div[data-testid="stTabs"] button[data-baseweb="tab"] p {
+        font-size: 11px !important;
+        letter-spacing: -0.3px !important;
+        white-space: nowrap !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
