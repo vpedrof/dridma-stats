@@ -326,7 +326,7 @@ def stat_cards(stats: list[tuple[str, str]]) -> None:
 
 
 def short_tournament_name(name: str) -> str:
-    """Etiqueta compacta para la tabla de ofensiva por torneo."""
+    """Etiqueta compacta para las tablas de estadísticas por torneo."""
     original = str(name)
     year = re.search(r"\b(?:19|20)\d{2}\b", original)
     if not year:
@@ -500,7 +500,9 @@ with t5:
             detail = player_tournament_table(defense, player, defense_fields, "defense")
             if len(detail) > 1:
                 with st.expander("Defensiva por torneo"):
-                    render_table(detail, list(detail.columns))
+                    detail_display = detail.copy()
+                    detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
+                    render_table(detail_display, list(detail_display.columns))
 
         if not p.empty:
             r = p.iloc[0]
