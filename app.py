@@ -28,6 +28,11 @@ st.markdown("""
     .dridma-kpi-label { font-size: clamp(.64rem,2.5vw,.92rem); color: #FFFFFF; font-weight: 700; text-transform: uppercase; letter-spacing: .025em; white-space: nowrap; }
     .dridma-kpi-value { font-size: clamp(2rem,8vw,3.15rem); font-weight: 850; color: #FF6500; line-height: 1.15; margin-top: 3px; }
     div[data-testid="stTabs"] button { font-weight: 700; color: #09244D; }
+    /* Cinco pestañas visibles en una fila, sin flechas en móviles habituales. */
+    div[data-testid="stTabs"] [data-baseweb="tab-list"] { gap: 0 !important; width: 100%; justify-content: space-between; }
+    div[data-testid="stTabs"] [data-baseweb="tab"] { flex: 1 1 0; min-width: 0; padding: .55rem .12rem !important; }
+    div[data-testid="stTabs"] [data-baseweb="tab"] p { font-size: clamp(.61rem, 2.65vw, .92rem) !important; white-space: nowrap; }
+    div[data-testid="stTabs"] [data-baseweb="tab-border"] { width: 100%; }
     div[data-testid="stTabs"] button[aria-selected="true"] { color: #FF6500; }
     div[data-testid="stTabs"] [data-baseweb="tab-highlight"] { background: #FF6500; }
     [data-testid="stDataFrame"] { border: 1px solid #DDE4EE; border-radius: 10px; }
@@ -270,7 +275,23 @@ with t5:
     if not players:
         st.info("No hay jugadores registrados en los torneos seleccionados.")
     else:
-        player = st.selectbox("Seleccionar jugador", players, key="dridma_player")
+        # El selector comienza vacío y puede limpiarse con un toque para buscar otro.
+        if st.session_state.get("dridma_player") not in players:
+            st.session_state["dridma_player"] = None
+
+        def limpiar_jugador():
+            st.session_state["dridma_player"] = None
+
+        player = st.selectbox(
+            "Seleccionar jugador", players, index=None,
+            placeholder="Escribe para buscar un jugador...", key="dridma_player"
+        )
+        if player is not None:
+            st.button("⌕ Buscar otro jugador", on_click=limpiar_jugador, key="dridma_clear_player")
+        else:
+            st.caption("Selecciona un jugador para ver su ficha.")
+
+    if players and player is not None:
         st.markdown(
             '<div class="dridma-profile">'
             '<div class="dridma-profile-label">DRIDMA RIVAS · JUGADORES</div>'
