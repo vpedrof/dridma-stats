@@ -345,22 +345,27 @@ def player_tournament_table(source: pd.DataFrame, player: str, fields: list[str]
     return grouped[["TORNEO", "PO", "A", "E", "DP", "PB"]]
 
 
-def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int] | None:
-    """AB, H, HR for a confirmed plate appearance; None if not classifiable."""
+def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, int, int] | None:
+    """AB, H, HR, BB, SO for a confirmed plate appearance."""
     if not confirmed or not isinstance(result, str) or not result.strip():
         return None
     text = result.lower()
-    # Sacrifice flies/bunts, walks, HBP and interference are PA but not AB.
-    if (re.search(r"\bwalks?\b|\bintentional(?:ly)? walked\b|\bhit by pitch\b|\bhit by a pitch\b|\bcatcher.s interference\b", text)
+    # Walks count as BB but not AB; strikeouts count as AB and SO.
+    if re.search(r"\bwalks?\b|\bintentional(?:ly)? walked\b", text):
+        return (0, 0, 0, 1, 0)
+    if re.search(r"\bstrikes? out\b|\bstruck out\b", text):
+        return (1, 0, 0, 0, 1)
+    # HBP, sacrifices and interference do not count as AB or BB.
+    if (re.search(r"\bhit by pitch\b|\bhit by a pitch\b|\bcatcher.s interference\b", text)
         or re.search(r"\bsacrific(?:e|es|ed|ing)\b|\bsac fly\b|\bsac bunt\b", text)):
-        return (0, 0, 0)
+        return (0, 0, 0, 0, 0)
     if re.search(r"\bhomers?\b|\bhome runs?\b", text):
-        return (1, 1, 1)
+        return (1, 1, 1, 0, 0)
     if re.search(r"\bsingles?\b|\bdoubles?\b|\btriples?\b", text):
-        return (1, 1, 0)
+        return (1, 1, 0, 0, 0)
     # Reached on error / fielder's choice are official AB, not hits.
     if re.search(r"\breaches? on\b|\bfielder.s choice\b|\bstrikes? out\b|\bgrounds? out\b|\bflies? out\b|\blines? out\b|\bpops? out\b|\bfouls? out\b|\bdouble play\b|\btriple play\b", text):
-        return (1, 0, 0)
+        return (1, 0, 0, 0, 0)
     return None
 
 
@@ -368,12 +373,12 @@ def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, 
     """Aggregate offensive outcomes by opposing pitcher, using the selected tournaments."""
     required = {"Bateador", "Lanzador", "Lanzador_ID", "Equipo_Bateador", "Resultado", "PA_Confirmada"}
     if not required.issubset(turns_df.columns):
-        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "AVG"]), 0
+        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "BB", "SO", "AVG"]), 0
     data = turns_df.loc[turns_df["Equipo_Bateador"].astype(str).str.strip().str.upper().eq("DRI")].copy()
     data["Bateador_normalizado"] = data["Bateador"].astype(str).str.strip().map(name_map).fillna(data["Bateador"].astype(str).str.strip())
     data = data.loc[data["Bateador_normalizado"].eq(player)]
     if data.empty:
-        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "AVG"]), 0
+        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "BB", "SO", "AVG"]), 0
     records = []
     unresolved = 0
     for _, row in data.iterrows():
@@ -385,14 +390,14 @@ def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, 
         pitcher_id = str(row["Lanzador_ID"]).strip() if pd.notna(row["Lanzador_ID"]) else ""
         pitcher_name = str(row["Lanzador"]).strip() if pd.notna(row["Lanzador"]) else "Desconocido"
         records.append({"Lanzador_ID": pitcher_id or pitcher_name, "Lanzador": pitcher_name,
-                        "AB": stats[0], "H": stats[1], "HR": stats[2]})
+                        "AB": stats[0], "H": stats[1], "HR": stats[2], "BB": stats[3], "SO": stats[4]})
     if not records:
-        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "AVG"]), unresolved
+        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "BB", "SO", "AVG"]), unresolved
     summary = pd.DataFrame(records).groupby("Lanzador_ID", as_index=False).agg(
-        {"Lanzador": "first", "AB": "sum", "H": "sum", "HR": "sum"})
+        {"Lanzador": "first", "AB": "sum", "H": "sum", "HR": "sum", "BB": "sum", "SO": "sum"})
     summary["AVG"] = divide(summary["H"], summary["AB"]).round(3)
     summary = summary.sort_values(["AB", "H", "Lanzador"], ascending=[False, False, True])
-    return summary[["Lanzador", "AB", "H", "HR", "AVG"]], unresolved
+    return summary[["Lanzador", "AB", "H", "HR", "BB", "SO", "AVG"]], unresolved
 
 
 with t5:
@@ -443,7 +448,7 @@ with t5:
             if versus.empty:
                 st.caption("No hay turnos confirmados contra lanzadores en los torneos seleccionados.")
             else:
-                render_table(versus, ["Lanzador", "AB", "H", "HR", "AVG"], {"AVG": ".3f"})
+                render_table(versus, ["Lanzador", "AB", "H", "HR", "BB", "SO", "AVG"], {"AVG": ".3f"})
             if unresolved:
                 st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
 
