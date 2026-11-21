@@ -370,19 +370,19 @@ def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, 
 
 
 def short_pitcher_name(full_name: str) -> str:
-    """Display first uppercase surname and first given name; preserve De Quint Dennis."""
+    """Display first surname and initial of first given name."""
     name = " ".join(str(full_name).split())
     if not name or name == "Desconocido":
         return name
     if re.match(r"^DE\s+QUINT(?:\s|$)", name, flags=re.IGNORECASE):
-        return "De Quint Dennis"
+        return "De Quint D."
     parts = name.split()
     # Source convention: one/two uppercase surnames followed by title-case given names.
     first_given = next((i for i, part in enumerate(parts[1:], 1)
                         if any(c.isalpha() for c in part) and part != part.upper()), None)
     if first_given is None:
         return name  # Avoid inventing a given name when source format differs.
-    return f"{parts[0].capitalize()} {parts[first_given]}"
+    return f"{parts[0].capitalize()} {parts[first_given][0].upper()}."
 
 
 def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, str]) -> tuple[pd.DataFrame, int]:
