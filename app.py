@@ -475,20 +475,38 @@ with t5:
                     detail_display = detail.copy()
                     detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
                     render_table(detail_display, list(detail_display.columns), {"AVG": ".3f"})
+            # Ambos detalles parten de los mismos turnos confirmados de DRIDMA.
+            versus, unresolved = offense_by_pitcher(turns, player, mapping)
+            total_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
+
+            def add_total_row(frame: pd.DataFrame, label_column: str) -> pd.DataFrame:
+                totals = frame[total_cols].sum()
+                total_ab, total_h = int(totals["AB"]), int(totals["H"])
+                total_row = {col: int(totals[col]) for col in total_cols}
+                total_row[label_column] = "TOTAL"
+                if label_column == "Lanzador":
+                    total_row["Equipo"] = ""
+                total_row["AVG"] = round(total_h / total_ab, 3) if total_ab else float("nan")
+                return pd.concat([frame, pd.DataFrame([total_row])], ignore_index=True)
+
+            with st.expander("Detalle contra equipos"):
+                if versus.empty:
+                    st.caption("No hay turnos confirmados contra equipos rivales en los torneos seleccionados.")
+                else:
+                    by_team = versus.groupby("Equipo", as_index=False)[total_cols].sum()
+                    by_team["AVG"] = divide(by_team["H"], by_team["AB"]).round(3)
+                    by_team = by_team.sort_values(["AB", "H", "Equipo"], ascending=[False, False, True])
+                    team_display = add_total_row(by_team, "Equipo")
+                    render_table(team_display, ["Equipo", *total_cols, "AVG"], {"AVG": ".3f"})
+                if unresolved:
+                    st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
+
             with st.expander("Detalle contra lanzadores"):
-                versus, unresolved = offense_by_pitcher(turns, player, mapping)
                 if versus.empty:
                     st.caption("No hay turnos confirmados contra lanzadores en los torneos seleccionados.")
                 else:
-                    # Total de las categorías acumulativas; AVG se recalcula como H / AB.
-                    total_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
-                    totals = versus[total_cols].sum()
-                    total_ab = int(totals["AB"])
-                    total_h = int(totals["H"])
-                    total_row = {"Lanzador": "TOTAL", "Equipo": "", **{col: int(totals[col]) for col in total_cols},
-                                 "AVG": round(total_h / total_ab, 3) if total_ab else float("nan")}
-                    versus_display = pd.concat([versus, pd.DataFrame([total_row])], ignore_index=True)
-                    render_table(versus_display, ["Lanzador", "Equipo", "AB", "H", "HR", "RBI", "BB", "SO", "AVG"], {"AVG": ".3f"})
+                    versus_display = add_total_row(versus, "Lanzador")
+                    render_table(versus_display, ["Lanzador", "Equipo", *total_cols, "AVG"], {"AVG": ".3f"})
                 if unresolved:
                     st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
 
