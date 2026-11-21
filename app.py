@@ -1,6 +1,7 @@
 from pathlib import Path
 from html import escape
 from numbers import Number
+import re
 
 import pandas as pd
 import streamlit as st
@@ -222,6 +223,7 @@ try:
     pitching = read_data("db_Picheo")
     results = read_data("db_Resultados")
     names = read_data("db_Nombres")
+    turns = read_data("db_Turnos")
 except (FileNotFoundError, ValueError, ImportError, OSError, KeyError) as exc:
     st.error(f"No se pudieron cargar los datos: {exc}")
     st.stop()
@@ -238,6 +240,7 @@ offense = offense[offense["TORNEO"].isin(selected)].copy()
 defense = defense[defense["TORNEO"].isin(selected)].copy()
 pitching = pitching[pitching["TORNEO"].isin(selected)].copy()
 results = results[results["TORNEO"].isin(selected)].copy()
+turns = turns[turns["TORNEO"].isin(selected)].copy()
 
 for frame in (offense, defense, pitching):
     frame["Jugador"] = frame["Jugador"].astype(str).str.strip()
@@ -342,6 +345,56 @@ def player_tournament_table(source: pd.DataFrame, player: str, fields: list[str]
     return grouped[["TORNEO", "PO", "A", "E", "DP", "PB"]]
 
 
+def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int] | None:
+    """AB, H, HR for a confirmed plate appearance; None if not classifiable."""
+    if not confirmed or not isinstance(result, str) or not result.strip():
+        return None
+    text = result.lower()
+    # Sacrifice flies/bunts, walks, HBP and interference are PA but not AB.
+    if (re.search(r"\bwalks?\b|\bintentional(?:ly)? walked\b|\bhit by pitch\b|\bhit by a pitch\b|\bcatcher.s interference\b", text)
+        or re.search(r"\bsacrific(?:e|es|ed|ing)\b|\bsac fly\b|\bsac bunt\b", text)):
+        return (0, 0, 0)
+    if re.search(r"\bhomers?\b|\bhome runs?\b", text):
+        return (1, 1, 1)
+    if re.search(r"\bsingles?\b|\bdoubles?\b|\btriples?\b", text):
+        return (1, 1, 0)
+    # Reached on error / fielder's choice are official AB, not hits.
+    if re.search(r"\breaches? on\b|\bfielder.s choice\b|\bstrikes? out\b|\bgrounds? out\b|\bflies? out\b|\blines? out\b|\bpops? out\b|\bfouls? out\b|\bdouble play\b|\btriple play\b", text):
+        return (1, 0, 0)
+    return None
+
+
+def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, str]) -> tuple[pd.DataFrame, int]:
+    """Aggregate offensive outcomes by opposing pitcher, using the selected tournaments."""
+    required = {"Bateador", "Lanzador", "Lanzador_ID", "Equipo_Bateador", "Resultado", "PA_Confirmada"}
+    if not required.issubset(turns_df.columns):
+        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "AVG"]), 0
+    data = turns_df.loc[turns_df["Equipo_Bateador"].astype(str).str.strip().str.upper().eq("DRI")].copy()
+    data["Bateador_normalizado"] = data["Bateador"].astype(str).str.strip().map(name_map).fillna(data["Bateador"].astype(str).str.strip())
+    data = data.loc[data["Bateador_normalizado"].eq(player)]
+    if data.empty:
+        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "AVG"]), 0
+    records = []
+    unresolved = 0
+    for _, row in data.iterrows():
+        confirmed = str(row["PA_Confirmada"]).strip().lower() in ("true", "1", "yes")
+        stats = offensive_event_stats(row["Resultado"], confirmed)
+        if stats is None:
+            unresolved += 1
+            continue
+        pitcher_id = str(row["Lanzador_ID"]).strip() if pd.notna(row["Lanzador_ID"]) else ""
+        pitcher_name = str(row["Lanzador"]).strip() if pd.notna(row["Lanzador"]) else "Desconocido"
+        records.append({"Lanzador_ID": pitcher_id or pitcher_name, "Lanzador": pitcher_name,
+                        "AB": stats[0], "H": stats[1], "HR": stats[2]})
+    if not records:
+        return pd.DataFrame(columns=["Lanzador", "AB", "H", "HR", "AVG"]), unresolved
+    summary = pd.DataFrame(records).groupby("Lanzador_ID", as_index=False).agg(
+        {"Lanzador": "first", "AB": "sum", "H": "sum", "HR": "sum"})
+    summary["AVG"] = divide(summary["H"], summary["AB"]).round(3)
+    summary = summary.sort_values(["AB", "H", "Lanzador"], ascending=[False, False, True])
+    return summary[["Lanzador", "AB", "H", "HR", "AVG"]], unresolved
+
+
 with t5:
     if not players:
         st.info("No hay jugadores registrados en los torneos seleccionados.")
@@ -385,6 +438,14 @@ with t5:
             if len(detail) > 1:
                 with st.expander("Ofensiva por torneo"):
                     render_table(detail, list(detail.columns), {"AVG": ".3f"})
+            st.markdown('<div class="dridma-section">Ofensiva contra lanzadores</div>', unsafe_allow_html=True)
+            versus, unresolved = offense_by_pitcher(turns, player, mapping)
+            if versus.empty:
+                st.caption("No hay turnos confirmados contra lanzadores en los torneos seleccionados.")
+            else:
+                render_table(versus, ["Lanzador", "AB", "H", "HR", "AVG"], {"AVG": ".3f"})
+            if unresolved:
+                st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
 
         if not d.empty:
             r = d.iloc[0]
