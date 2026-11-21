@@ -470,7 +470,7 @@ with t5:
                         ("OPS", str(int(r["OPS"]))), ("HR", str(int(r["HR"])))])
             render_table(o, ["Jugador", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"])
             detail = player_tournament_table(offense, player, offense_fields, "offense")
-            if len(detail) > 1:
+            if not detail.empty:
                 with st.expander("Ofensiva por torneo"):
                     detail_display = detail.copy()
                     detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
@@ -516,7 +516,7 @@ with t5:
             stat_cards([("PO", str(int(r["PO"]))), ("A", str(int(r["A"]))), ("E", str(int(r["E"])))])
             render_table(d, ["Jugador", "PO", "A", "E", "DP", "PB"])
             detail = player_tournament_table(defense, player, defense_fields, "defense")
-            if len(detail) > 1:
+            if not detail.empty:
                 with st.expander("Defensiva por torneo"):
                     detail_display = detail.copy()
                     detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
@@ -530,7 +530,7 @@ with t5:
                         ("K", str(int(r["K"])))])
             render_table(p, ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
             detail = player_tournament_table(pitching, player, pitching_fields + ["OUTS"], "pitching")
-            if len(detail) > 1:
+            if not detail.empty:
                 with st.expander("Picheo por torneo"):
                     render_table(detail, list(detail.columns), {"EFE": ".2f"})
 
