@@ -1,5 +1,6 @@
 from pathlib import Path
 from html import escape
+from numbers import Number
 
 import pandas as pd
 import streamlit as st
@@ -115,9 +116,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-@st.cache_data
+EXCEL = DATA / "DRIDMA_7_Tablas.xlsx"
+
+# Adaptación del esquema HTML-to-Excel al esquema usado por la interfaz original.
+COLUMNAS = {
+    "db_Ofensiva": {"Torneo": "TORNEO", "ab": "AB", "h": "H", "bb": "BB", "r": "R", "rbi": "RBI", "so": "SO", "double": "2B", "triple": "3B", "hr": "HR", "tb": "TB", "hbp": "HBP", "sh": "SH", "sf": "SF", "ibb": "IBB", "sb": "SB", "cs": "CS"},
+    "db_Defensiva": {"Torneo": "TORNEO", "field_a": "A", "field_po": "PO", "field_e": "E", "field_dp": "DP", "field_pb": "PB"},
+    "db_Picheo": {"Torneo": "TORNEO", "pitch_ip": "IP", "pitch_h": "H", "pitch_r": "R", "pitch_er": "ER", "pitch_bb": "BB", "pitch_so": "K", "pitch_pitches": "Picheos", "pitch_strikes": "Strikes"},
+}
+
+@st.cache_data(show_spinner=False)
 def read_data(name: str) -> pd.DataFrame:
-    return pd.read_csv(DATA / f"{name}.csv", encoding="utf-8-sig")
+    frame = pd.read_excel(EXCEL, sheet_name=name, engine="openpyxl")
+    if name == "db_Nombres":
+        return frame.rename(columns={"Nombre_original": "Jugador", "Nombre_limpio": "Nombre"})
+    if name == "db_Resultados":
+        return frame.rename(columns={
+            "Equipo_Local_Codigo": "Equipo 1", "Equipo_Visitante_Codigo": "Equipo 2",
+            "Equipo_Local": "Eq1", "Equipo_Visitante": "Eq2",
+            "Carreras_Local": "Carreras", "Carreras_Visitante": "Carreras2",
+        })
+    if name in COLUMNAS:
+        return frame.rename(columns=COLUMNAS[name])
+    return frame
 
 
 def numeric(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
@@ -143,7 +164,7 @@ def render_table(df: pd.DataFrame, columns: list[str], formats: dict[str, str] |
                 display = "—"
             elif col in formats:
                 display = format(value, formats[col])
-            elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            elif isinstance(value, Number) and not isinstance(value, bool):
                 display = f"{value:g}"
             else:
                 display = str(value)
@@ -201,11 +222,12 @@ try:
     pitching = read_data("db_Picheo")
     results = read_data("db_Resultados")
     names = read_data("db_Nombres")
-except (FileNotFoundError, pd.errors.EmptyDataError) as exc:
+except (FileNotFoundError, ValueError, ImportError, OSError, KeyError) as exc:
     st.error(f"No se pudieron cargar los datos: {exc}")
     st.stop()
 
-mapping = dict(zip(names["Jugador"], names["Nombre"]))
+names = names.dropna(subset=["Jugador", "Nombre"])
+mapping = dict(zip(names["Jugador"].astype(str).str.strip(), names["Nombre"].astype(str).str.strip()))
 tournaments = sorted(results["TORNEO"].dropna().unique().tolist())
 selected = st.multiselect("Torneos", tournaments, default=tournaments)
 if not selected:
@@ -218,8 +240,10 @@ pitching = pitching[pitching["TORNEO"].isin(selected)].copy()
 results = results[results["TORNEO"].isin(selected)].copy()
 
 for frame in (offense, defense, pitching):
+    frame["Jugador"] = frame["Jugador"].astype(str).str.strip()
     frame["Jugador"] = frame["Jugador"].map(mapping).fillna(frame["Jugador"])
 
+results[["Carreras", "Carreras2"]] = results[["Carreras", "Carreras2"]].apply(pd.to_numeric, errors="coerce")
 wins = ((results["Equipo 1"].eq("DRI") & (results["Carreras"] > results["Carreras2"])) |
         (results["Equipo 2"].eq("DRI") & (results["Carreras2"] > results["Carreras"]))).sum()
 losses = ((results["Equipo 1"].eq("DRI") & (results["Carreras"] < results["Carreras2"])) |
@@ -250,8 +274,13 @@ defense_table = defense.groupby("Jugador", as_index=False)[defense_fields].sum()
 
 pitching_fields = ["H", "R", "ER", "BB", "K", "Picheos", "Strikes"]
 pitching = numeric(pitching, pitching_fields + ["IP"])
-pitching["OUTS"] = (pitching["IP"].astype(int) * 3
-                   + ((pitching["IP"] * 10).round().astype(int) % 10))
+# IP se almacena como entradas.tercios (p.ej. 5.2 = 5 entradas y 2 outs).
+whole_innings = pitching["IP"].astype(int)
+partial_outs = ((pitching["IP"] - whole_innings) * 10).round().astype(int)
+if not partial_outs.isin([0, 1, 2]).all():
+    st.error("Hay valores de IP no válidos en db_Picheo.")
+    st.stop()
+pitching["OUTS"] = whole_innings * 3 + partial_outs
 pitching_table = pitching.groupby("Jugador", as_index=False)[pitching_fields + ["OUTS"]].sum()
 pitching_table["IP"] = (pitching_table["OUTS"] // 3).astype(str) + "." + (pitching_table["OUTS"] % 3).astype(str)
 pitching_table["EFE"] = divide(7 * pitching_table["ER"], pitching_table["OUTS"] / 3).round(2)
