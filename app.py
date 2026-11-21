@@ -448,7 +448,15 @@ with t5:
             if versus.empty:
                 st.caption("No hay turnos confirmados contra lanzadores en los torneos seleccionados.")
             else:
-                render_table(versus, ["Lanzador", "AB", "H", "HR", "RBI", "BB", "SO", "AVG"], {"AVG": ".3f"})
+                # Total de las categorías acumulativas; AVG se recalcula como H / AB.
+                total_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
+                totals = versus[total_cols].sum()
+                total_ab = int(totals["AB"])
+                total_h = int(totals["H"])
+                total_row = {"Lanzador": "TOTAL", **{col: int(totals[col]) for col in total_cols},
+                             "AVG": round(total_h / total_ab, 3) if total_ab else float("nan")}
+                versus_display = pd.concat([versus, pd.DataFrame([total_row])], ignore_index=True)
+                render_table(versus_display, ["Lanzador", "AB", "H", "HR", "RBI", "BB", "SO", "AVG"], {"AVG": ".3f"})
             if unresolved:
                 st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
 
