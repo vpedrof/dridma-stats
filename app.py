@@ -50,6 +50,14 @@ st.markdown("""
     .dridma-vs { font-size:.75rem; color:#63718A; }
     .dridma-game-result { text-align:center; margin-top:.55rem; font-size:.78rem; font-weight:800; }
     .dridma-win { color:#177245; } .dridma-loss { color:#B63838; }
+    .dridma-profile { background: #09244D; color: #FFFFFF; border-radius: 14px; padding: 1rem; margin: .6rem 0 .8rem; }
+    .dridma-profile-label { color: #FF8B3D; font-size: .73rem; font-weight: 800; letter-spacing: .07em; }
+    .dridma-profile-name { color: #FFFFFF; font-size: clamp(1.3rem, 5vw, 1.8rem); font-weight: 850; margin: .25rem 0; }
+    .dridma-profile-sub { color: #D8E3F4; font-size: .8rem; }
+    .dridma-stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 7px; margin: .5rem 0 .85rem; }
+    .dridma-stat { background: #F2F5FA; border: 1px solid #E2E7EF; border-radius: 10px; text-align: center; padding: .65rem .2rem; min-width: 0; }
+    .dridma-stat-label { color: #53637C; font-size: .72rem; font-weight: 800; }
+    .dridma-stat-value { color: #09244D; font-size: clamp(1.2rem, 5vw, 1.7rem); font-weight: 850; }
     .dridma-footer { margin-top: 2rem; border-top: 3px solid #FF6500; padding-top: .75rem; color: #66758B; font-size: .8rem; text-align: center; }
     @media (max-width: 640px) {
         .block-container { padding-left: .85rem; padding-right: .85rem; padding-top: .7rem; }
@@ -228,17 +236,84 @@ with t3:
 with t4:
     render_games(results.sort_values("Fecha"))
 
+def stat_cards(stats: list[tuple[str, str]]) -> None:
+    blocks = "".join(
+        '<div class="dridma-stat"><div class="dridma-stat-label">'
+        + escape(label) + '</div><div class="dridma-stat-value">'
+        + escape(str(value)) + '</div></div>'
+        for label, value in stats
+    )
+    st.markdown(f'<div class="dridma-stat-grid">{blocks}</div>', unsafe_allow_html=True)
+
+
+def player_tournament_table(source: pd.DataFrame, player: str, fields: list[str], kind: str) -> pd.DataFrame:
+    rows = source.loc[source["Jugador"] == player]
+    if rows.empty:
+        return pd.DataFrame()
+    grouped = rows.groupby("TORNEO", as_index=False)[fields].sum()
+    if kind == "offense":
+        grouped["AVG"] = divide(grouped["H"], grouped["AB"]).round(3)
+        obp = divide(grouped["H"] + grouped["BB"] + grouped["HBP"],
+                     grouped["AB"] + grouped["BB"] + grouped["HBP"] + grouped["SF"])
+        slg = divide(grouped["TB"], grouped["AB"])
+        grouped["OPS"] = ((obp.fillna(0) + slg.fillna(0)) * 1000).round().astype(int)
+        grouped = grouped.rename(columns={"SO": "K"})
+        return grouped[["TORNEO", "AVG", "OPS", "AB", "H", "R", "RBI", "HR", "BB", "K"]]
+    if kind == "pitching":
+        grouped["IP"] = (grouped["OUTS"] // 3).astype(str) + "." + (grouped["OUTS"] % 3).astype(str)
+        grouped["EFE"] = divide(7 * grouped["ER"], grouped["OUTS"] / 3).round(2)
+        return grouped[["TORNEO", "IP", "EFE", "K", "H", "BB", "R", "ER"]]
+    return grouped[["TORNEO", "PO", "A", "E", "DP", "PB"]]
+
+
 with t5:
     if not players:
         st.info("No hay jugadores registrados en los torneos seleccionados.")
     else:
         player = st.selectbox("Seleccionar jugador", players, key="dridma_player")
-        st.markdown(f'<div class="dridma-player-name">{escape(player)}</div>', unsafe_allow_html=True)
-        player_section("Ofensiva", offense_table, player,
-                       ["AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"],
-                       {"AVG": ".3f"})
-        player_section("Defensiva", defense_table, player, ["PO", "A", "E", "DP", "PB"])
-        player_section("Picheo", pitching_table, player,
-                       ["IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
+        st.markdown(
+            '<div class="dridma-profile">'
+            '<div class="dridma-profile-label">DRIDMA RIVAS · JUGADORES</div>'
+            f'<div class="dridma-profile-name">{escape(str(player))}</div>'
+            f'<div class="dridma-profile-sub">{len(selected)} torneo(s) seleccionado(s)</div>'
+            '</div>', unsafe_allow_html=True
+        )
+
+        o = offense_table.loc[offense_table["Jugador"] == player]
+        d = defense_table.loc[defense_table["Jugador"] == player]
+        p = pitching_table.loc[pitching_table["Jugador"] == player]
+
+        if not o.empty:
+            r = o.iloc[0]
+            st.markdown('<div class="dridma-section">Ofensiva</div>', unsafe_allow_html=True)
+            stat_cards([("AVG", f'{r["AVG"]:.3f}' if pd.notna(r["AVG"]) else "—"),
+                        ("OPS", str(int(r["OPS"]))), ("HR", str(int(r["HR"])))])
+            render_table(o, ["Jugador", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"])
+            detail = player_tournament_table(offense, player, offense_fields, "offense")
+            if len(detail) > 1:
+                with st.expander("Ofensiva por torneo"):
+                    render_table(detail, list(detail.columns), {"AVG": ".3f"})
+
+        if not d.empty:
+            r = d.iloc[0]
+            st.markdown('<div class="dridma-section">Defensiva</div>', unsafe_allow_html=True)
+            stat_cards([("PO", str(int(r["PO"]))), ("A", str(int(r["A"]))), ("E", str(int(r["E"])))])
+            render_table(d, ["Jugador", "PO", "A", "E", "DP", "PB"])
+            detail = player_tournament_table(defense, player, defense_fields, "defense")
+            if len(detail) > 1:
+                with st.expander("Defensiva por torneo"):
+                    render_table(detail, list(detail.columns))
+
+        if not p.empty:
+            r = p.iloc[0]
+            st.markdown('<div class="dridma-section">Picheo</div>', unsafe_allow_html=True)
+            stat_cards([("IP", str(r["IP"])),
+                        ("EFE", f'{r["EFE"]:.2f}' if pd.notna(r["EFE"]) else "—"),
+                        ("K", str(int(r["K"])))])
+            render_table(p, ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
+            detail = player_tournament_table(pitching, player, pitching_fields + ["OUTS"], "pitching")
+            if len(detail) > 1:
+                with st.expander("Picheo por torneo"):
+                    render_table(detail, list(detail.columns), {"EFE": ".2f"})
 
 st.markdown('<div class="dridma-footer">DRIDMA RIVAS · Estadísticas del equipo</div>', unsafe_allow_html=True)
