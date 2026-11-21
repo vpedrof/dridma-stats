@@ -152,10 +152,31 @@ def divide(a: pd.Series, b: pd.Series) -> pd.Series:
     return a / b.where(b.ne(0))
 
 
+# Definiciones compartidas por el glosario y las ayudas en las cabeceras HTML.
+STAT_HELP = {
+    "G": "Partidos jugados", "AB": "Turnos oficiales al bate", "H": "Hits o imparables",
+    "2B": "Dobles", "3B": "Triples", "HR": "Jonrones", "RBI": "Carreras impulsadas",
+    "R": "Carreras anotadas o permitidas, según la tabla", "BB": "Bases por bolas",
+    "SO": "Ponches", "K": "Ponches", "AVG": "Promedio de bateo: H / AB",
+    "OPS": "OBP + SLG (en esta aplicación se presenta multiplicado por 1000)",
+    "OBP": "Porcentaje de embasado", "SLG": "Promedio de bases totales por turno oficial",
+    "TB": "Bases totales", "HBP": "Golpeado por lanzamiento", "SH": "Toque de sacrificio",
+    "SF": "Elevado de sacrificio", "IBB": "Base por bolas intencional",
+    "SB": "Bases robadas", "CS": "Atrapado intentando robar base",
+    "PO": "Eliminaciones defensivas (putouts)", "A": "Asistencias defensivas",
+    "E": "Errores defensivos", "DP": "Dobles plays", "PB": "Passed balls",
+    "IP": "Entradas lanzadas (el decimal indica outs: .1 = 1 out; .2 = 2 outs)",
+    "ER": "Carreras limpias permitidas", "EFE": "Efectividad: carreras limpias por 7 entradas (ERA)",
+    "ERA": "Promedio de carreras limpias por 7 entradas",
+    "Picheos": "Lanzamientos realizados", "Strikes": "Lanzamientos contabilizados como strike",
+    "TORNEO": "Torneo de participación", "Equipo": "Código de tres letras del equipo rival",
+    "Lanzador": "Lanzador rival (apellido e inicial)",
+}
+
 def render_table(df: pd.DataFrame, columns: list[str], formats: dict[str, str] | None = None) -> None:
     """Tabla HTML con primera columna fija y desplazamiento horizontal."""
     formats = formats or {}
-    headers = "".join(f"<th>{escape(str(c))}</th>" for c in columns)
+    headers = "".join(f'<th title="{escape(STAT_HELP.get(str(c), str(c)), quote=True)}">{escape(str(c))}</th>' for c in columns)
     rows = []
     for _, row in df.iterrows():
         cells = []
@@ -259,6 +280,26 @@ items = "".join(
     for label, value in kpis
 )
 st.markdown(f'<div class="dridma-kpis">{items}</div>', unsafe_allow_html=True)
+
+# Glosario accesible desde cualquier pestaña; contraído por defecto.
+with st.expander("📖 Glosario de estadísticas y torneos", expanded=False):
+    st.caption("Consulta las abreviaturas utilizadas en las tablas. En ordenador, también puedes situar el cursor sobre los encabezados para ver su definición.")
+    glossary_groups = {
+        "Ofensiva": ["AB", "H", "2B", "3B", "HR", "RBI", "R", "BB", "SO", "K", "AVG", "OBP", "SLG", "OPS", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"],
+        "Defensiva": ["PO", "A", "E", "DP", "PB"],
+        "Picheo": ["IP", "H", "R", "ER", "BB", "K", "EFE", "Picheos", "Strikes"],
+    }
+    for group_name, abbreviations in glossary_groups.items():
+        st.markdown(f"**{group_name}**")
+        glossary_df = pd.DataFrame({"Abreviatura": abbreviations,
+                                    "Significado": [STAT_HELP[abbr] for abbr in abbreviations]})
+        st.dataframe(glossary_df, hide_index=True, use_container_width=True,
+                     column_config={"Abreviatura": st.column_config.TextColumn(width="small"),
+                                    "Significado": st.column_config.TextColumn(width="large")})
+    st.markdown("**Torneos**")
+    st.dataframe(pd.DataFrame({"Código": ["SC25", "SC26", "MC25", "MC26"],
+                               "Torneo": ["Super Cup 2025", "Super Cup 2026", "Masters Cup 2025", "Masters Cup 2026"]}),
+                 hide_index=True, use_container_width=True)
 
 # Calcular una sola vez los acumulados para tablas y fichas individuales.
 offense_fields = ["AB", "H", "BB", "R", "RBI", "SO", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"]
