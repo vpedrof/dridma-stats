@@ -266,7 +266,7 @@ def player_section(title: str, table: pd.DataFrame, player: str, cols: list[str]
     st.markdown(f'<div class="dridma-section">{escape(title)}</div>', unsafe_allow_html=True)
     render_table(record, ["Jugador"] + cols, formats)
 
-t1, t2, t3, t4, t5 = st.tabs(["Ofensiva", "Defensiva", "Picheo", "Resultados", "Jugadores"])
+t1, t2, t3, t4, t5 = st.tabs(["Ofens", "Defens", "Picheo", "Scores", "Jugadores"])
 
 with t1:
     render_table(offense_table.sort_values(["AVG", "H"], ascending=False),
