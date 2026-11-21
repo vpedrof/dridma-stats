@@ -16,22 +16,39 @@ ORANGE = "#FF6500"
 st.markdown("""
 <style>
     .stApp { background: #FFFFFF; color: #09244D; }
-    .block-container { padding-top: 1.1rem; padding-bottom: 2rem; max-width: 1100px; }
+    .block-container { padding-top: .65rem; padding-bottom: 1.4rem; max-width: 1100px; }
     header[data-testid="stHeader"] { background: #FFFFFF; }
     [data-testid="stToolbar"] { color: #09244D; }
     h1, h2, h3 { color: #09244D !important; }
-    .dridma-subtitle { text-align: center; color: #52617A; font-size: .9rem; margin: .1rem 0 1.3rem; }
+    .dridma-subtitle { text-align: center; color: #52617A; font-size: .9rem; margin: 0 0 .6rem; }
     .dridma-topline { height: 5px; background: linear-gradient(90deg,#09244D 0%,#09244D 60%,#FF6500 60%,#FF6500 100%); border-radius: 4px; margin-bottom: 1.2rem; }
     .dridma-title { color: #09244D; text-align: center; font-weight: 900; font-size: clamp(1.35rem,4vw,2.15rem); letter-spacing: .02em; margin: .4rem 0 0; }
-    .dridma-kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin: 1.1rem 0 1.3rem; }
-    .dridma-kpi { min-width: 0; background: #09244D; border-radius: 12px; padding: 14px 5px 12px; text-align: center; }
+    .dridma-kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin: .7rem 0 .85rem; }
+    .dridma-kpi { min-width: 0; background: #09244D; border-radius: 12px; padding: 10px 5px 9px; text-align: center; }
     .dridma-kpi-label { font-size: clamp(.64rem,2.5vw,.92rem); color: #FFFFFF; font-weight: 700; text-transform: uppercase; letter-spacing: .025em; white-space: nowrap; }
-    .dridma-kpi-value { font-size: clamp(2rem,8vw,3.15rem); font-weight: 850; color: #FF6500; line-height: 1.15; margin-top: 8px; }
+    .dridma-kpi-value { font-size: clamp(2rem,8vw,3.15rem); font-weight: 850; color: #FF6500; line-height: 1.15; margin-top: 3px; }
     div[data-testid="stTabs"] button { font-weight: 700; color: #09244D; }
     div[data-testid="stTabs"] button[aria-selected="true"] { color: #FF6500; }
     div[data-testid="stTabs"] [data-baseweb="tab-highlight"] { background: #FF6500; }
     [data-testid="stDataFrame"] { border: 1px solid #DDE4EE; border-radius: 10px; }
     .dridma-section { color: #09244D; font-weight: 800; font-size: 1.15rem; margin: .7rem 0 .4rem; }
+    .dridma-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #DDE4EE; border-radius: 10px; }
+    .dridma-table { border-collapse: separate; border-spacing: 0; font-size: .88rem; width: max-content; min-width: 100%; color: #09244D; }
+    .dridma-table th, .dridma-table td { padding: .55rem .65rem; border-bottom: 1px solid #E2E7EF; white-space: nowrap; text-align: right; }
+    .dridma-table th { background: #F2F5FA; font-weight: 750; position: sticky; top: 0; z-index: 1; }
+    .dridma-table td:first-child, .dridma-table th:first-child { position: sticky; left: 0; z-index: 2; text-align: left; background: #FFFFFF; box-shadow: 2px 0 3px #09244D15; }
+    .dridma-table th:first-child { z-index: 3; background: #F2F5FA; }
+    .dridma-table tr:nth-child(even) td { background: #F8FAFD; }
+    .dridma-table tr:nth-child(even) td:first-child { background: #F8FAFD; }
+    .dridma-game { border: 1px solid #DDE4EE; border-radius: 12px; padding: .8rem; margin-bottom: .7rem; background: #FFFFFF; }
+    .dridma-game-top { display:flex; justify-content:space-between; gap: .5rem; font-size:.76rem; color:#63718A; margin-bottom:.6rem; }
+    .dridma-game-score { display:grid; grid-template-columns: 1fr auto 1fr; gap:.5rem; align-items:center; }
+    .dridma-team { text-align:center; min-width:0; overflow-wrap:anywhere; font-size:.88rem; font-weight:700; }
+    .dridma-score { display:block; font-size:1.7rem; font-weight:850; color:#09244D; }
+    .dridma-score-home { color:#FF6500; }
+    .dridma-vs { font-size:.75rem; color:#63718A; }
+    .dridma-game-result { text-align:center; margin-top:.55rem; font-size:.78rem; font-weight:800; }
+    .dridma-win { color:#177245; } .dridma-loss { color:#B63838; }
     .dridma-footer { margin-top: 2rem; border-top: 3px solid #FF6500; padding-top: .75rem; color: #66758B; font-size: .8rem; text-align: center; }
     @media (max-width: 640px) {
         .block-container { padding-left: .85rem; padding-right: .85rem; padding-top: .7rem; }
@@ -55,6 +72,62 @@ def numeric(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 
 def divide(a: pd.Series, b: pd.Series) -> pd.Series:
     return a / b.where(b.ne(0))
+
+
+def render_table(df: pd.DataFrame, columns: list[str], formats: dict[str, str] | None = None) -> None:
+    """Tabla HTML con primera columna fija y desplazamiento horizontal."""
+    formats = formats or {}
+    headers = "".join(f"<th>{escape(str(c))}</th>" for c in columns)
+    rows = []
+    for _, row in df.iterrows():
+        cells = []
+        for col in columns:
+            value = row[col]
+            if pd.isna(value):
+                display = "—"
+            elif col in formats:
+                display = format(value, formats[col])
+            elif isinstance(value, (int, float)) and not isinstance(value, bool):
+                display = f"{value:g}"
+            else:
+                display = str(value)
+            cells.append(f"<td>{escape(display)}</td>")
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+    html = ('<div class="dridma-scroll"><table class="dridma-table"><thead><tr>'
+            + headers + '</tr></thead><tbody>' + "".join(rows) + '</tbody></table></div>')
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def render_games(df: pd.DataFrame) -> None:
+    """Tarjetas legibles en móvil; usa códigos de equipo para identificar DRIDMA."""
+    for _, game in df.iterrows():
+        first_is_dri = str(game["Equipo 1"]).strip().upper() == "DRI"
+        second_is_dri = str(game["Equipo 2"]).strip().upper() == "DRI"
+        if not (first_is_dri or second_is_dri):
+            continue
+        our_score = game["Carreras"] if first_is_dri else game["Carreras2"]
+        their_score = game["Carreras2"] if first_is_dri else game["Carreras"]
+        opponent = game["Eq2"] if first_is_dri else game["Eq1"]
+        opponent = str(opponent).strip() if pd.notna(opponent) else "Rival"
+        if opponent.upper().startswith("DRI"):
+            opponent = str(game["Equipo 2"] if first_is_dri else game["Equipo 1"])
+        try:
+            our_score, their_score = int(our_score), int(their_score)
+        except (ValueError, TypeError):
+            continue
+        status = "Victoria" if our_score > their_score else "Derrota" if our_score < their_score else "Empate"
+        status_class = "dridma-win" if our_score > their_score else "dridma-loss" if our_score < their_score else ""
+        date = pd.to_datetime(game["Fecha"], errors="coerce")
+        date_text = date.strftime("%d/%m/%Y") if pd.notna(date) else "Fecha no disponible"
+        tournament = escape(str(game["TORNEO"]))
+        st.markdown(f'''<div class="dridma-game">
+          <div class="dridma-game-top"><span>{escape(date_text)}</span><span>{tournament}</span></div>
+          <div class="dridma-game-score">
+            <div class="dridma-team">DRIDMA RIVAS<span class="dridma-score dridma-score-home">{our_score}</span></div>
+            <div class="dridma-vs">VS</div>
+            <div class="dridma-team">{escape(opponent)}<span class="dridma-score">{their_score}</span></div>
+          </div><div class="dridma-game-result {status_class}">{status}</div>
+        </div>''', unsafe_allow_html=True)
 
 
 st.markdown('<div class="dridma-topline"></div>', unsafe_allow_html=True)
@@ -115,13 +188,14 @@ with t1:
     slg = divide(table["TB"], table["AB"])
     table["OPS"] = ((obp.fillna(0) + slg.fillna(0)) * 1000).round().astype(int)
     table = table.rename(columns={"SO": "K"})
-    st.dataframe(table.sort_values(["AVG", "H"], ascending=False), hide_index=True, use_container_width=True)
+    table = table.sort_values(["AVG", "H"], ascending=False)
+    render_table(table, ["Jugador", "AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"], {"AVG": ".3f"})
 
 with t2:
     fields = ["A", "PO", "E", "DP", "PB"]
     defense = numeric(defense, fields)
     table = defense.groupby("Jugador", as_index=False)[fields].sum()
-    st.dataframe(table.sort_values("PO", ascending=False), hide_index=True, use_container_width=True)
+    render_table(table.sort_values("PO", ascending=False), ["Jugador", "PO", "A", "E", "DP", "PB"])
 
 with t3:
     fields = ["H", "R", "ER", "BB", "K", "Picheos", "Strikes"]
@@ -132,11 +206,9 @@ with t3:
     table["IP"] = (table["OUTS"] // 3).astype(str) + "." + (table["OUTS"] % 3).astype(str)
     table["EFE"] = divide(7 * table["ER"], table["OUTS"] / 3).round(2)
     table = table[["Jugador", "IP", "H", "R", "ER", "BB", "K", "Picheos", "Strikes", "EFE"]]
-    st.dataframe(table.sort_values("K", ascending=False), hide_index=True, use_container_width=True)
+    render_table(table.sort_values("K", ascending=False), ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
 
 with t4:
-    results["Fecha"] = pd.to_datetime(results["Fecha"], errors="coerce").dt.strftime("%d/%m/%Y")
-    cols = ["TORNEO", "Fecha", "Eq1", "Carreras", "Eq2", "Carreras2"]
-    st.dataframe(results[cols], hide_index=True, use_container_width=True)
+    render_games(results.sort_values("Fecha"))
 
 st.markdown('<div class="dridma-footer">DRIDMA RIVAS · Estadísticas del equipo</div>', unsafe_allow_html=True)
