@@ -28,11 +28,35 @@ st.markdown("""
     .dridma-kpi-label { font-size: clamp(.64rem,2.5vw,.92rem); color: #FFFFFF; font-weight: 700; text-transform: uppercase; letter-spacing: .025em; white-space: nowrap; }
     .dridma-kpi-value { font-size: clamp(2rem,8vw,3.15rem); font-weight: 850; color: #FF6500; line-height: 1.15; margin-top: 3px; }
     div[data-testid="stTabs"] button { font-weight: 700; color: #09244D; }
-    /* Cinco pestañas visibles en una fila, sin flechas en móviles habituales. */
-    div[data-testid="stTabs"] [data-baseweb="tab-list"] { gap: 0 !important; width: 100%; justify-content: space-between; }
-    div[data-testid="stTabs"] [data-baseweb="tab"] { flex: 1 1 0; min-width: 0; padding: .55rem .12rem !important; }
-    div[data-testid="stTabs"] [data-baseweb="tab"] p { font-size: clamp(.61rem, 2.65vw, .92rem) !important; white-space: nowrap; }
+    /* Forzar cinco pestañas dentro del ancho disponible en móvil. */
+    div[data-testid="stTabs"] [data-baseweb="tab-list"] {
+        display: flex !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        gap: 0 !important;
+        justify-content: stretch !important;
+        overflow: visible !important;
+    }
+    div[data-testid="stTabs"] [data-baseweb="tab"] {
+        flex: 1 1 20% !important;
+        width: 20% !important;
+        min-width: 0 !important;
+        max-width: 20% !important;
+        padding: .55rem 0 !important;
+        justify-content: center !important;
+    }
+    div[data-testid="stTabs"] [data-baseweb="tab"] p {
+        font-size: clamp(.58rem, 2.35vw, .85rem) !important;
+        letter-spacing: -.025em !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+    }
     div[data-testid="stTabs"] [data-baseweb="tab-border"] { width: 100%; }
+    div[data-testid="stTabs"] button[aria-label*="scroll" i],
+    div[data-testid="stTabs"] button[aria-label*="previous" i],
+    div[data-testid="stTabs"] button[aria-label*="next" i] {
+        display: none !important;
+    }
     div[data-testid="stTabs"] button[aria-selected="true"] { color: #FF6500; }
     div[data-testid="stTabs"] [data-baseweb="tab-highlight"] { background: #FF6500; }
     [data-testid="stDataFrame"] { border: 1px solid #DDE4EE; border-radius: 10px; }
