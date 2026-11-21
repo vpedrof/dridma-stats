@@ -475,22 +475,22 @@ with t5:
                     detail_display = detail.copy()
                     detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
                     render_table(detail_display, list(detail_display.columns), {"AVG": ".3f"})
-            st.markdown('<div class="dridma-section">Detalle contra lanzadores</div>', unsafe_allow_html=True)
-            versus, unresolved = offense_by_pitcher(turns, player, mapping)
-            if versus.empty:
-                st.caption("No hay turnos confirmados contra lanzadores en los torneos seleccionados.")
-            else:
-                # Total de las categorías acumulativas; AVG se recalcula como H / AB.
-                total_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
-                totals = versus[total_cols].sum()
-                total_ab = int(totals["AB"])
-                total_h = int(totals["H"])
-                total_row = {"Lanzador": "TOTAL", "Equipo": "", **{col: int(totals[col]) for col in total_cols},
-                             "AVG": round(total_h / total_ab, 3) if total_ab else float("nan")}
-                versus_display = pd.concat([versus, pd.DataFrame([total_row])], ignore_index=True)
-                render_table(versus_display, ["Lanzador", "Equipo", "AB", "H", "HR", "RBI", "BB", "SO", "AVG"], {"AVG": ".3f"})
-            if unresolved:
-                st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
+            with st.expander("Detalle contra lanzadores"):
+                versus, unresolved = offense_by_pitcher(turns, player, mapping)
+                if versus.empty:
+                    st.caption("No hay turnos confirmados contra lanzadores en los torneos seleccionados.")
+                else:
+                    # Total de las categorías acumulativas; AVG se recalcula como H / AB.
+                    total_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
+                    totals = versus[total_cols].sum()
+                    total_ab = int(totals["AB"])
+                    total_h = int(totals["H"])
+                    total_row = {"Lanzador": "TOTAL", "Equipo": "", **{col: int(totals[col]) for col in total_cols},
+                                 "AVG": round(total_h / total_ab, 3) if total_ab else float("nan")}
+                    versus_display = pd.concat([versus, pd.DataFrame([total_row])], ignore_index=True)
+                    render_table(versus_display, ["Lanzador", "Equipo", "AB", "H", "HR", "RBI", "BB", "SO", "AVG"], {"AVG": ".3f"})
+                if unresolved:
+                    st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
 
         if not d.empty:
             r = d.iloc[0]
