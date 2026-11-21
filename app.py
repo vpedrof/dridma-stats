@@ -31,6 +31,7 @@ st.markdown("""
     div[data-testid="stTabs"] button[aria-selected="true"] { color: #FF6500; }
     div[data-testid="stTabs"] [data-baseweb="tab-highlight"] { background: #FF6500; }
     [data-testid="stDataFrame"] { border: 1px solid #DDE4EE; border-radius: 10px; }
+    .dridma-player-name { font-size: 1.25rem; font-weight: 850; color: #09244D; margin: .6rem 0; }
     .dridma-section { color: #09244D; font-weight: 800; font-size: 1.15rem; margin: .7rem 0 .4rem; }
     .dridma-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #DDE4EE; border-radius: 10px; }
     .dridma-table { border-collapse: separate; border-spacing: 0; font-size: .88rem; width: max-content; min-width: 100%; color: #09244D; }
@@ -177,38 +178,67 @@ items = "".join(
 )
 st.markdown(f'<div class="dridma-kpis">{items}</div>', unsafe_allow_html=True)
 
-t1, t2, t3, t4 = st.tabs(["Ofensiva", "Defensiva", "Picheo", "Resultados"])
+# Calcular una sola vez los acumulados para tablas y fichas individuales.
+offense_fields = ["AB", "H", "BB", "R", "RBI", "SO", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"]
+offense = numeric(offense, offense_fields)
+offense_table = offense.groupby("Jugador", as_index=False)[offense_fields].sum()
+offense_table["AVG"] = divide(offense_table["H"], offense_table["AB"]).round(3)
+obp = divide(offense_table["H"] + offense_table["BB"] + offense_table["HBP"],
+             offense_table["AB"] + offense_table["BB"] + offense_table["HBP"] + offense_table["SF"])
+slg = divide(offense_table["TB"], offense_table["AB"])
+offense_table["OPS"] = ((obp.fillna(0) + slg.fillna(0)) * 1000).round().astype(int)
+offense_table = offense_table.rename(columns={"SO": "K"})
+
+defense_fields = ["A", "PO", "E", "DP", "PB"]
+defense = numeric(defense, defense_fields)
+defense_table = defense.groupby("Jugador", as_index=False)[defense_fields].sum()
+
+pitching_fields = ["H", "R", "ER", "BB", "K", "Picheos", "Strikes"]
+pitching = numeric(pitching, pitching_fields + ["IP"])
+pitching["OUTS"] = (pitching["IP"].astype(int) * 3
+                   + ((pitching["IP"] * 10).round().astype(int) % 10))
+pitching_table = pitching.groupby("Jugador", as_index=False)[pitching_fields + ["OUTS"]].sum()
+pitching_table["IP"] = (pitching_table["OUTS"] // 3).astype(str) + "." + (pitching_table["OUTS"] % 3).astype(str)
+pitching_table["EFE"] = divide(7 * pitching_table["ER"], pitching_table["OUTS"] / 3).round(2)
+
+# Solo jugadores con registros en alguno de los torneos seleccionados.
+players = sorted(set(offense_table["Jugador"]) | set(defense_table["Jugador"]) | set(pitching_table["Jugador"]))
+
+def player_section(title: str, table: pd.DataFrame, player: str, cols: list[str], formats: dict[str, str] | None = None) -> None:
+    record = table.loc[table["Jugador"] == player]
+    if record.empty:
+        return
+    st.markdown(f'<div class="dridma-section">{escape(title)}</div>', unsafe_allow_html=True)
+    render_table(record, ["Jugador"] + cols, formats)
+
+t1, t2, t3, t4, t5 = st.tabs(["Ofensiva", "Defensiva", "Picheo", "Resultados", "Jugadores"])
 
 with t1:
-    fields = ["AB", "H", "BB", "R", "RBI", "SO", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"]
-    offense = numeric(offense, fields)
-    table = offense.groupby("Jugador", as_index=False)[fields].sum()
-    table["AVG"] = divide(table["H"], table["AB"]).round(3)
-    obp = divide(table["H"] + table["BB"] + table["HBP"], table["AB"] + table["BB"] + table["HBP"] + table["SF"])
-    slg = divide(table["TB"], table["AB"])
-    table["OPS"] = ((obp.fillna(0) + slg.fillna(0)) * 1000).round().astype(int)
-    table = table.rename(columns={"SO": "K"})
-    table = table.sort_values(["AVG", "H"], ascending=False)
-    render_table(table, ["Jugador", "AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"], {"AVG": ".3f"})
+    render_table(offense_table.sort_values(["AVG", "H"], ascending=False),
+                 ["Jugador", "AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"],
+                 {"AVG": ".3f"})
 
 with t2:
-    fields = ["A", "PO", "E", "DP", "PB"]
-    defense = numeric(defense, fields)
-    table = defense.groupby("Jugador", as_index=False)[fields].sum()
-    render_table(table.sort_values("PO", ascending=False), ["Jugador", "PO", "A", "E", "DP", "PB"])
+    render_table(defense_table.sort_values("PO", ascending=False), ["Jugador", "PO", "A", "E", "DP", "PB"])
 
 with t3:
-    fields = ["H", "R", "ER", "BB", "K", "Picheos", "Strikes"]
-    pitching = numeric(pitching, fields + ["IP"])
-    outs = (pitching["IP"].astype(int) * 3 + ((pitching["IP"] * 10).round().astype(int) % 10))
-    pitching["OUTS"] = outs
-    table = pitching.groupby("Jugador", as_index=False)[fields + ["OUTS"]].sum()
-    table["IP"] = (table["OUTS"] // 3).astype(str) + "." + (table["OUTS"] % 3).astype(str)
-    table["EFE"] = divide(7 * table["ER"], table["OUTS"] / 3).round(2)
-    table = table[["Jugador", "IP", "H", "R", "ER", "BB", "K", "Picheos", "Strikes", "EFE"]]
-    render_table(table.sort_values("K", ascending=False), ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
+    render_table(pitching_table.sort_values("K", ascending=False),
+                 ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
 
 with t4:
     render_games(results.sort_values("Fecha"))
+
+with t5:
+    if not players:
+        st.info("No hay jugadores registrados en los torneos seleccionados.")
+    else:
+        player = st.selectbox("Seleccionar jugador", players, key="dridma_player")
+        st.markdown(f'<div class="dridma-player-name">{escape(player)}</div>', unsafe_allow_html=True)
+        player_section("Ofensiva", offense_table, player,
+                       ["AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"],
+                       {"AVG": ".3f"})
+        player_section("Defensiva", defense_table, player, ["PO", "A", "E", "DP", "PB"])
+        player_section("Picheo", pitching_table, player,
+                       ["IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
 
 st.markdown('<div class="dridma-footer">DRIDMA RIVAS · Estadísticas del equipo</div>', unsafe_allow_html=True)
