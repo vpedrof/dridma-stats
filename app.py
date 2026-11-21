@@ -325,6 +325,19 @@ def stat_cards(stats: list[tuple[str, str]]) -> None:
     st.markdown(f'<div class="dridma-stat-grid">{blocks}</div>', unsafe_allow_html=True)
 
 
+def short_tournament_name(name: str) -> str:
+    """Etiqueta compacta para la tabla de ofensiva por torneo."""
+    original = str(name)
+    year = re.search(r"\b(?:19|20)\d{2}\b", original)
+    if not year:
+        return original
+    if re.search(r"\bsuper\s*cup\b", original, flags=re.IGNORECASE):
+        return "SC" + year.group(0)[-2:]
+    if re.search(r"\bmasters?\s*cup\b", original, flags=re.IGNORECASE):
+        return "MC" + year.group(0)[-2:]
+    return original
+
+
 def player_tournament_table(source: pd.DataFrame, player: str, fields: list[str], kind: str) -> pd.DataFrame:
     rows = source.loc[source["Jugador"] == player]
     if rows.empty:
@@ -459,7 +472,9 @@ with t5:
             detail = player_tournament_table(offense, player, offense_fields, "offense")
             if len(detail) > 1:
                 with st.expander("Ofensiva por torneo"):
-                    render_table(detail, list(detail.columns), {"AVG": ".3f"})
+                    detail_display = detail.copy()
+                    detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
+                    render_table(detail_display, list(detail_display.columns), {"AVG": ".3f"})
             st.markdown('<div class="dridma-section">Detalle contra lanzadores</div>', unsafe_allow_html=True)
             versus, unresolved = offense_by_pitcher(turns, player, mapping)
             if versus.empty:
