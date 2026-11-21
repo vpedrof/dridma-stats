@@ -369,6 +369,22 @@ def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, 
     return None
 
 
+def short_pitcher_name(full_name: str) -> str:
+    """Display first uppercase surname and first given name; preserve De Quint Dennis."""
+    name = " ".join(str(full_name).split())
+    if not name or name == "Desconocido":
+        return name
+    if re.match(r"^DE\s+QUINT(?:\s|$)", name, flags=re.IGNORECASE):
+        return "De Quint Dennis"
+    parts = name.split()
+    # Source convention: one/two uppercase surnames followed by title-case given names.
+    first_given = next((i for i, part in enumerate(parts[1:], 1)
+                        if any(c.isalpha() for c in part) and part != part.upper()), None)
+    if first_given is None:
+        return name  # Avoid inventing a given name when source format differs.
+    return f"{parts[0].capitalize()} {parts[first_given]}"
+
+
 def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, str]) -> tuple[pd.DataFrame, int]:
     """Aggregate offensive outcomes by opposing pitcher, using the selected tournaments."""
     required = {"Bateador", "Lanzador", "Lanzador_ID", "Equipo_Bateador", "Resultado", "PA_Confirmada", "Equipo_Lanzador"}
@@ -395,6 +411,7 @@ def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, 
         return pd.DataFrame(columns=["Lanzador", "Equipo", "AB", "H", "HR", "RBI", "BB", "SO", "AVG"]), unresolved
     summary = pd.DataFrame(records).groupby(["Lanzador_ID", "Equipo"], as_index=False).agg(
         {"Lanzador": "first", "AB": "sum", "H": "sum", "HR": "sum", "RBI": "sum", "BB": "sum", "SO": "sum"})
+    summary["Lanzador"] = summary["Lanzador"].map(short_pitcher_name)
     summary["AVG"] = divide(summary["H"], summary["AB"]).round(3)
     summary = summary.sort_values(["AB", "H", "Lanzador"], ascending=[False, False, True])
     return summary[["Lanzador", "Equipo", "AB", "H", "HR", "RBI", "BB", "SO", "AVG"]], unresolved
