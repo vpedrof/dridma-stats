@@ -289,7 +289,7 @@ def render_games(df: pd.DataFrame) -> None:
         st.markdown(f'''<div class="dridma-game">
           <div class="dridma-game-top"><span>{escape(date_text)}</span><span>{tournament}</span></div>
           <div class="dridma-game-score">
-            <div class="dridma-team">DRIDMA RIVAS<span class="dridma-score dridma-score-home">{our_score}</span></div>
+            <div class="dridma-team">Dridma Rivas<br>(DRI)<span class="dridma-score dridma-score-home">{our_score}</span></div>
             <div class="dridma-vs">VS</div>
             <div class="dridma-team">{escape(opponent)}<span class="dridma-score">{their_score}</span></div>
           </div><div class="dridma-game-result {status_class}">{status}</div>
