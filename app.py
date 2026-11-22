@@ -72,6 +72,32 @@ st.markdown("""
     .dridma-table th:first-child { z-index: 3; background: #F2F5FA; }
     .dridma-table tr:nth-child(even) td { background: #F8FAFD; }
     .dridma-table tr:nth-child(even) td:first-child { background: #F8FAFD; }
+    /* Tablas compactas: menor espacio lateral, cifras alineadas y nombres cortos. */
+    .dridma-table { font-size: .78rem; font-variant-numeric: tabular-nums; }
+    .dridma-table th, .dridma-table td {
+        padding: .34rem .32rem;
+        line-height: 1.2;
+        letter-spacing: -.01em;
+    }
+    .dridma-table th:first-child, .dridma-table td:first-child {
+        min-width: 0;
+        max-width: 118px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    @media (max-width: 640px) {
+        .dridma-scroll { border-radius: 8px; }
+        .dridma-table { font-size: 11px; }
+        .dridma-table th, .dridma-table td {
+            padding: 7px 5px;
+            line-height: 1.1;
+            letter-spacing: -.015em;
+        }
+        .dridma-table th:first-child, .dridma-table td:first-child {
+            max-width: 92px;
+        }
+    }
+
     .dridma-game { border: 1px solid #DDE4EE; border-radius: 12px; padding: .8rem; margin-bottom: .7rem; background: #FFFFFF; }
     .dridma-game-top { display:flex; justify-content:space-between; gap: .5rem; font-size:.76rem; color:#63718A; margin-bottom:.6rem; }
     .dridma-game-score { display:grid; grid-template-columns: 1fr auto 1fr; gap:.5rem; align-items:center; }
