@@ -145,7 +145,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-EXCEL = DATA / "DRIDMA_7_Tablas.xlsx"
+EXCEL = DATA / "db_Dridma_Stats.xlsx"
 
 # Adaptación del esquema HTML-to-Excel al esquema usado por la interfaz original.
 COLUMNAS = {
