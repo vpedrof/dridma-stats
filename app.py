@@ -101,7 +101,9 @@ st.markdown("""
     .dridma-game { border: 1px solid #DDE4EE; border-radius: 12px; padding: .8rem; margin-bottom: .7rem; background: #FFFFFF; }
     .dridma-game-top { display:flex; justify-content:space-between; gap: .5rem; font-size:.76rem; color:#63718A; margin-bottom:.6rem; }
     .dridma-game-score { display:grid; grid-template-columns: 1fr auto 1fr; gap:.5rem; align-items:center; }
-    .dridma-team { text-align:center; min-width:0; overflow-wrap:anywhere; font-size:.88rem; font-weight:700; }
+    .dridma-team { text-align:center; min-width:0; font-size:.88rem; font-weight:700; }
+    .dridma-team-name { display:block; white-space:nowrap; font-size:clamp(.60rem, 2.5vw, .88rem); letter-spacing:-.025em; }
+    .dridma-team-code { display:block; white-space:nowrap; font-size:.82rem; }
     .dridma-score { display:block; font-size:1.7rem; font-weight:850; color:#09244D; }
     .dridma-score-home { color:#FF6500; }
     .dridma-vs { font-size:.75rem; color:#63718A; }
@@ -275,8 +277,12 @@ def render_games(df: pd.DataFrame) -> None:
         their_score = game["Carreras2"] if first_is_dri else game["Carreras"]
         opponent = game["Eq2"] if first_is_dri else game["Eq1"]
         opponent = str(opponent).strip() if pd.notna(opponent) else "Rival"
+        opponent_code = str(game["Equipo 2"] if first_is_dri else game["Equipo 1"]).strip().upper()
+        # El nombre del Excel puede incluir ya el código al final: «Equipo (CRO)».
+        # Lo retiramos para que el código aparezca siempre en una segunda línea.
+        opponent = re.sub(r"\s*\([A-Za-z]{3}\)\s*$", "", opponent).strip()
         if opponent.upper().startswith("DRI"):
-            opponent = str(game["Equipo 2"] if first_is_dri else game["Equipo 1"])
+            opponent = "Rival"
         try:
             our_score, their_score = int(our_score), int(their_score)
         except (ValueError, TypeError):
@@ -289,9 +295,9 @@ def render_games(df: pd.DataFrame) -> None:
         st.markdown(f'''<div class="dridma-game">
           <div class="dridma-game-top"><span>{escape(date_text)}</span><span>{tournament}</span></div>
           <div class="dridma-game-score">
-            <div class="dridma-team">Dridma Rivas<br>(DRI)<span class="dridma-score dridma-score-home">{our_score}</span></div>
+            <div class="dridma-team"><span class="dridma-team-name">Dridma Rivas</span><span class="dridma-team-code">(DRI)</span><span class="dridma-score dridma-score-home">{our_score}</span></div>
             <div class="dridma-vs">VS</div>
-            <div class="dridma-team">{escape(opponent)}<span class="dridma-score">{their_score}</span></div>
+            <div class="dridma-team"><span class="dridma-team-name">{escape(opponent)}</span><span class="dridma-team-code">({escape(opponent_code)})</span><span class="dridma-score">{their_score}</span></div>
           </div><div class="dridma-game-result {status_class}">{status}</div>
         </div>''', unsafe_allow_html=True)
 
