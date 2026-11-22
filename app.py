@@ -218,19 +218,14 @@ def short_player_name(full_name: str) -> str:
 
 
 def short_source_name(full_name: str) -> str:
-    """Fuente WBSC: APELLIDO(S) Nombre(s), con excepción DE QUINT."""
+    """WBSC: APELLIDO(S) Nombre(s) -> PrimerApellido N."""
     name = " ".join(str(full_name).split())
     if not name or name.lower() in ("nan", "desconocido", "total"):
         return name
     parts = name.split()
-    if re.match(r"^DE\\s+QUINT(?:\\s|$)", name, flags=re.IGNORECASE):
-        first_given = next((part for part in parts[2:] if part != part.upper()), None)
-        return f"De Quint {first_given[0].upper()}." if first_given else name
-    first_given_idx = next(
-        (i for i, part in enumerate(parts[1:], 1)
-         if any(c.isalpha() for c in part) and part != part.upper()), None
-    )
-    if first_given_idx is None:
+    first_given_idx = next((i for i, part in enumerate(parts)
+                            if any(c.isalpha() for c in part) and not part.isupper()), None)
+    if first_given_idx is None or first_given_idx == 0:
         return name
     return f"{parts[0].capitalize()} {parts[first_given_idx][0].upper()}."
 
