@@ -441,7 +441,7 @@ def offensive_count_performance(turns_df: pd.DataFrame, pitches_df: pd.DataFrame
     Las PA sin resultado ofensivo clasificable se incluyen en PA, pero no se
     inventan AB/H/TB para ellas.
     """
-    columns = ["Conteo", "PA finalizadas", "AVG", "OPS"]
+    columns = ["Conteo", "PA finalizadas", "H", "AB", "AVG", "OPS"]
     required_t = {"Turno_ID", "Equipo_Bateador", "Bateador", "PA_Confirmada", "Resultado"}
     required_p = {"Turno_ID", "Pitch_No", "Bolas_Antes", "Strikes_Antes"}
     if not required_t.issubset(turns_df.columns) or not required_p.issubset(pitches_df.columns):
@@ -810,7 +810,7 @@ else:
                         if count_table.empty:
                             st.caption("No hay apariciones confirmadas con conteo final disponible.")
                         else:
-                            render_table(count_table, ["Conteo", "PA finalizadas", "AVG", "OPS"],
+                            render_table(count_table, ["Conteo", "PA finalizadas", "H", "AB", "AVG", "OPS"],
                                          {"AVG": ".3f", "OPS": ".3f"})
                             st.caption("Conteo previo al lanzamiento final de cada aparición. AVG y OPS se calculan con resultados clasificables; las PA incluyen todas las confirmadas con conteo.")
 
