@@ -174,26 +174,42 @@ STAT_HELP = {
 }
 
 def short_player_name(full_name: str) -> str:
-    """Abreviar solo para visualización, sin alterar claves ni agrupaciones.
+    """Nombre visual de DRIDMA basado en db_Nombres, sin alterar datos internos."""
+    name = " ".join(str(full_name).split())
+    if not name or name.lower() in ("nan", "desconocido", "total"):
+        return name
+    # El diccionario se construye con el nombre ORIGINAL, que distingue
+    # inequívocamente apellidos en MAYÚSCULAS de nombres de pila.
+    if name in PLAYER_SHORT_NAMES:
+        return PLAYER_SHORT_NAMES[name]
+    # Respaldo para nombres completos fuera de db_Nombres: Nombre Apellido.
+    parts = name.split()
+    if len(parts) < 2:
+        return name
+    return f"{parts[-1].capitalize()} {parts[0][0].upper()}."
 
-    DRIDMA: Nombre(s) Apellido(s) -> Primer apellido + inicial del nombre.
-    Rivales: APELLIDO(S) Nombre(s) -> Primer apellido + inicial del nombre.
-    """
+
+def short_source_name(full_name: str) -> str:
+    """Fuente WBSC: APELLIDO(S) Nombre(s), con excepción DE QUINT."""
     name = " ".join(str(full_name).split())
     if not name or name.lower() in ("nan", "desconocido", "total"):
         return name
     parts = name.split()
-    if len(parts) < 2:
-        return name
-    if re.match(r"^DE\s+QUINT(?:\s|$)", name, flags=re.IGNORECASE):
+    if re.match(r"^DE\\s+QUINT(?:\\s|$)", name, flags=re.IGNORECASE):
         first_given = next((part for part in parts[2:] if part != part.upper()), None)
         return f"De Quint {first_given[0].upper()}." if first_given else name
-    first_given_idx = next((i for i, part in enumerate(parts[1:], 1)
-                            if any(c.isalpha() for c in part) and part != part.upper()), None)
-    if parts[0] == parts[0].upper() and first_given_idx is not None:
-        return f"{parts[0].capitalize()} {parts[first_given_idx][0].upper()}."
-    # Nombres normalizados de DRIDMA: Pedro Vargas -> Vargas P.
-    return f"{parts[-1].capitalize()} {parts[0][0].upper()}."
+    first_given_idx = next(
+        (i for i, part in enumerate(parts[1:], 1)
+         if any(c.isalpha() for c in part) and part != part.upper()), None
+    )
+    if first_given_idx is None:
+        return name
+    return f"{parts[0].capitalize()} {parts[first_given_idx][0].upper()}."
+
+
+# Se completa tras cargar db_Nombres. Evita inferir el orden de un
+# nombre ya normalizado (por ejemplo, «Benitez Gabriel»).
+PLAYER_SHORT_NAMES: dict[str, str] = {}
 
 
 def render_table(df: pd.DataFrame, columns: list[str], formats: dict[str, str] | None = None) -> None:
@@ -276,6 +292,11 @@ except (FileNotFoundError, ValueError, ImportError, OSError, KeyError) as exc:
 
 names = names.dropna(subset=["Jugador", "Nombre"])
 mapping = dict(zip(names["Jugador"].astype(str).str.strip(), names["Nombre"].astype(str).str.strip()))
+PLAYER_SHORT_NAMES = {
+    clean: short_source_name(original)
+    for original, clean in mapping.items()
+}
+
 tournaments = sorted(results["TORNEO"].dropna().unique().tolist())
 selected = st.multiselect("Torneos", tournaments, default=tournaments)
 if not selected:
@@ -450,7 +471,7 @@ def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, 
 
 def short_pitcher_name(full_name: str) -> str:
     """Formato visual común para lanzadores y jugadores."""
-    return short_player_name(full_name)
+    return short_source_name(full_name)
 
 
 def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, str]) -> tuple[pd.DataFrame, int]:
