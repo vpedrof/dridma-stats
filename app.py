@@ -313,6 +313,7 @@ try:
     results = read_data("db_Resultados")
     names = read_data("db_Nombres")
     turns = read_data("db_Turnos")
+    pitches = read_data("db_Lanzamientos")
 except (FileNotFoundError, ValueError, ImportError, OSError, KeyError) as exc:
     st.error(f"No se pudieron cargar los datos: {exc}")
     st.stop()
@@ -365,6 +366,55 @@ def player_tournament_table(source: pd.DataFrame, player: str, fields: list[str]
         grouped["EFE"] = divide(7 * grouped["ER"], grouped["OUTS"] / 3).round(2)
         return grouped[["TORNEO", "IP", "EFE", "K", "H", "BB", "R", "ER"]]
     return grouped[["TORNEO", "PO", "A", "E", "DP", "PB"]]
+
+
+def plate_discipline_by_tournament(turns_df: pd.DataFrame, pitches_df: pd.DataFrame,
+                                   player: str, name_map: dict[str, str]) -> pd.DataFrame:
+    """P/PA y swing en el primer lanzamiento, solo PA confirmadas de DRI.
+
+    Cada PA cuenta una vez (Turno_ID). Los lanzamientos se enlazan por Turno_ID,
+    y las tasas globales se calculan con numeradores/denominadores agregados.
+    """
+    required_turns = {"Turno_ID", "TORNEO", "Equipo_Bateador", "Bateador", "PA_Confirmada"}
+    required_pitches = {"Turno_ID", "Pitch_No", "Tipo_Evento", "Evento"}
+    if not required_turns.issubset(turns_df.columns) or not required_pitches.issubset(pitches_df.columns):
+        return pd.DataFrame(columns=["TORNEO", "P/PA", "1st Pitch Swing%"])
+    turns = turns_df.copy()
+    turns = turns.loc[turns["Equipo_Bateador"].astype(str).str.strip().str.upper().eq("DRI")]
+    normalized = turns["Bateador"].astype(str).str.strip()
+    normalized = normalized.map(name_map).fillna(normalized)
+    turns = turns.loc[normalized.eq(player) & turns["PA_Confirmada"].astype(str).str.lower().isin(["true", "1", "yes"])].copy()
+    turns = turns.drop_duplicates(subset=["Turno_ID"])
+    if turns.empty:
+        return pd.DataFrame(columns=["TORNEO", "P/PA", "1st Pitch Swing%"])
+
+    pitches = pitches_df.loc[pitches_df["Turno_ID"].isin(turns["Turno_ID"])].copy()
+    pitches["Pitch_No"] = pd.to_numeric(pitches["Pitch_No"], errors="coerce")
+    pitches = pitches.dropna(subset=["Pitch_No"]).drop_duplicates(subset=["Turno_ID", "Pitch_No"])
+    counts = pitches.groupby("Turno_ID").size().rename("Pitches")
+    first = pitches.loc[pitches["Pitch_No"].eq(1)].copy()
+    # Un swing puede resultar en foul, swing fallido o pelota puesta en juego.
+    # No contar strikes cantados, bolas, HBP ni lanzamientos sin evidencia de swing.
+    event = first["Tipo_Evento"].fillna("").astype(str).str.lower() + " " + first["Evento"].fillna("").astype(str).str.lower()
+    swing = event.str.contains(r"swing|foul|abanic|batazo|en juego|in play|hit into play|single|double|triple|home run|ground|fly|line|pop", regex=True)
+    first = first.assign(Swing=swing).set_index("Turno_ID")["Swing"]
+    turns = turns.join(counts, on="Turno_ID").join(first, on="Turno_ID")
+    # No usar PA sin un primer lanzamiento registrado para evitar denominadores sesgados.
+    turns = turns.dropna(subset=["Pitches", "Swing"])
+    if turns.empty:
+        return pd.DataFrame(columns=["TORNEO", "P/PA", "1st Pitch Swing%"])
+    turns["Swing"] = turns["Swing"].astype(bool).astype(int)
+    totals = turns.groupby("TORNEO", as_index=False).agg(PA=("Turno_ID", "size"),
+                                                         Pitches=("Pitches", "sum"),
+                                                         FirstSwings=("Swing", "sum"))
+    total = pd.DataFrame([{"TORNEO": "TOTAL", "PA": totals["PA"].sum(),
+                           "Pitches": totals["Pitches"].sum(),
+                           "FirstSwings": totals["FirstSwings"].sum()}])
+    totals = pd.concat([totals, total], ignore_index=True)
+    totals["P/PA"] = (totals["Pitches"] / totals["PA"]).round(2)
+    totals["1st Pitch Swing%"] = (100 * totals["FirstSwings"] / totals["PA"]).map(lambda x: f"{x:.1f}%")
+    totals["TORNEO"] = totals["TORNEO"].map(lambda t: "TOTAL" if t == "TOTAL" else short_tournament_name(t))
+    return totals[["TORNEO", "P/PA", "1st Pitch Swing%"]]
 
 
 def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, int, int] | None:
@@ -597,6 +647,7 @@ else:
             player_defense = defense.loc[defense["TORNEO"].isin(selected)].copy()
             player_pitching = pitching.loc[pitching["TORNEO"].isin(selected)].copy()
             player_turns = turns.loc[turns["TORNEO"].isin(selected)].copy()
+            player_pitches = pitches.loc[pitches["TORNEO"].isin(selected)].copy()
             player_offense, player_defense, player_pitching, offense_table, defense_table, pitching_table, offense_fields, defense_fields, pitching_fields = aggregate_tables(
                 player_offense, player_defense, player_pitching
             )
@@ -665,6 +716,13 @@ else:
                             render_table(versus_display, ["Lanzador", "Equipo", *total_cols, "AVG"], {"AVG": ".3f"})
                         if unresolved:
                             st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
+
+                    st.markdown("**Disciplina al plato por torneo**")
+                    discipline = plate_discipline_by_tournament(player_turns, player_pitches, player, mapping)
+                    if discipline.empty:
+                        st.caption("No hay apariciones confirmadas con lanzamientos registrados para este jugador.")
+                    else:
+                        render_table(discipline, ["TORNEO", "P/PA", "1st Pitch Swing%"], {"P/PA": ".2f"})
 
                 elif tab == "Defensiva":
                     r = d.iloc[0]
