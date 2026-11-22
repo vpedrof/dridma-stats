@@ -495,7 +495,24 @@ def offensive_count_performance(turns_df: pd.DataFrame, pitches_df: pd.DataFrame
     slg = divide(group["TB"], group["AB"])
     group["OPS"] = (obp + slg).round(3)
     group["sort_key"] = group["Conteo"].map(lambda c: int(c[0]) * 3 + int(c[2]))
-    return group.sort_values("sort_key")[columns]
+    group = group.sort_values("sort_key")
+
+    # La fila TOTAL debe calcularse a partir de los conteos acumulados,
+    # nunca promediando los AVG y OPS de las filas individuales.
+    summed = {key: int(group[key].sum()) for key in
+              ["PA finalizadas", "H", "AB", "TB", "BB", "HBP", "SF"]}
+    total_ab = summed["AB"]
+    total_obp_den = total_ab + summed["BB"] + summed["HBP"] + summed["SF"]
+    total_avg = round(summed["H"] / total_ab, 3) if total_ab else float("nan")
+    total_obp = ((summed["H"] + summed["BB"] + summed["HBP"]) / total_obp_den
+                 if total_obp_den else float("nan"))
+    total_slg = summed["TB"] / total_ab if total_ab else float("nan")
+    total_ops = round(total_obp + total_slg, 3)
+    total = {"Conteo": "TOTAL", "PA finalizadas": summed["PA finalizadas"],
+             "H": summed["H"], "AB": total_ab,
+             "AVG": total_avg, "OPS": total_ops}
+    return pd.concat([group[columns], pd.DataFrame([total], columns=columns)],
+                     ignore_index=True)
 
 
 def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, int, int] | None:
