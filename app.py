@@ -717,12 +717,12 @@ else:
                         if unresolved:
                             st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
 
-                    st.markdown("**Disciplina al plato por torneo**")
-                    discipline = plate_discipline_by_tournament(player_turns, player_pitches, player, mapping)
-                    if discipline.empty:
-                        st.caption("No hay apariciones confirmadas con lanzamientos registrados para este jugador.")
-                    else:
-                        render_table(discipline, ["TORNEO", "P/PA", "1st Pitch Swing%"], {"P/PA": ".2f"})
+                    with st.expander("Disciplina al plato por torneo", expanded=False):
+                        discipline = plate_discipline_by_tournament(player_turns, player_pitches, player, mapping)
+                        if discipline.empty:
+                            st.caption("No hay apariciones confirmadas con lanzamientos registrados para este jugador.")
+                        else:
+                            render_table(discipline, ["TORNEO", "P/PA", "1st Pitch Swing%"], {"P/PA": ".2f"})
 
                 elif tab == "Defensiva":
                     r = d.iloc[0]
