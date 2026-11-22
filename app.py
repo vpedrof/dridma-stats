@@ -435,13 +435,12 @@ def plate_discipline_by_tournament(turns_df: pd.DataFrame, pitches_df: pd.DataFr
 
 def offensive_count_performance(turns_df: pd.DataFrame, pitches_df: pd.DataFrame,
                                 player: str, name_map: dict[str, str]) -> pd.DataFrame:
-    """Resultados de PA confirmadas por conteo ANTES del último lanzamiento.
+    """AB y hits por conteo previo al último lanzamiento de cada AB confirmado.
 
-    AVG=H/AB; OPS=(H+BB+HBP)/(AB+BB+HBP+SF)+TB/AB.
-    Las PA sin resultado ofensivo clasificable se incluyen en PA, pero no se
-    inventan AB/H/TB para ellas.
+    Se excluyen bases por bolas, pelotazos y sacrificios sin AB. Los resultados
+    no clasificables no se cuentan como outs ni como turnos oficiales.
     """
-    columns = ["Conteo", "PA finalizadas", "H", "AB", "AVG", "OPS"]
+    columns = ["Conteo", "AB", "H", "AVG"]
     required_t = {"Turno_ID", "Equipo_Bateador", "Bateador", "PA_Confirmada", "Resultado"}
     required_p = {"Turno_ID", "Pitch_No", "Bolas_Antes", "Strikes_Antes"}
     if not required_t.issubset(turns_df.columns) or not required_p.issubset(pitches_df.columns):
@@ -465,54 +464,22 @@ def offensive_count_performance(turns_df: pd.DataFrame, pitches_df: pd.DataFrame
     if t.empty:
         return pd.DataFrame(columns=columns)
     t["Conteo"] = t["Bolas_Antes"].astype(int).astype(str) + "-" + t["Strikes_Antes"].astype(int).astype(str)
-
-    def outcome(result):
-        if not isinstance(result, str):
-            return (0, 0, 0, 0, 0, 0, 0)
-        value = result.lower()
-        parsed = offensive_event_stats(result, True)
-        if parsed is None:
-            return (0, 0, 0, 0, 0, 0, 0)
-        ab, hit, _, bb, _ = parsed
-        hbp = int(bool(re.search(r"\bhit by (?:a )?pitch\b", value)))
-        sf = int(bool(re.search(r"\bsacrifice fly\b|\bsac fly\b", value)))
-        tb = 0
-        if hit:
-            tb = (4 if re.search(r"\bhomers?\b|\bhome runs?\b", value)
-                  else 3 if re.search(r"\btriples?\b", value)
-                  else 2 if re.search(r"\bdoubles?\b", value) else 1)
-        return (ab, hit, tb, bb, hbp, sf, 1)
-
-    t[["AB", "H", "TB", "BB", "HBP", "SF", "Clasificado"]] = pd.DataFrame(
-        t["Resultado"].map(outcome).tolist(), index=t.index)
-    group = t.groupby("Conteo", as_index=False).agg(**{
-        "PA finalizadas": ("Turno_ID", "size"), "AB": ("AB", "sum"),
-        "H": ("H", "sum"), "TB": ("TB", "sum"), "BB": ("BB", "sum"),
-        "HBP": ("HBP", "sum"), "SF": ("SF", "sum")})
+    parsed = t["Resultado"].map(lambda result: offensive_event_stats(result, True))
+    # AB es el indicador oficial del evento: las PA sin AB no participan.
+    t["AB"] = parsed.map(lambda v: v[0] if v is not None else 0)
+    t["H"] = parsed.map(lambda v: v[1] if v is not None else 0)
+    t = t.loc[t["AB"].eq(1)].copy()
+    if t.empty:
+        return pd.DataFrame(columns=columns)
+    group = t.groupby("Conteo", as_index=False).agg(AB=("AB", "sum"), H=("H", "sum"))
     group["AVG"] = divide(group["H"], group["AB"]).round(3)
-    obp = divide(group["H"] + group["BB"] + group["HBP"],
-                 group["AB"] + group["BB"] + group["HBP"] + group["SF"])
-    slg = divide(group["TB"], group["AB"])
-    group["OPS"] = (obp + slg).round(3)
     group["sort_key"] = group["Conteo"].map(lambda c: int(c[0]) * 3 + int(c[2]))
     group = group.sort_values("sort_key")
-
-    # La fila TOTAL debe calcularse a partir de los conteos acumulados,
-    # nunca promediando los AVG y OPS de las filas individuales.
-    summed = {key: int(group[key].sum()) for key in
-              ["PA finalizadas", "H", "AB", "TB", "BB", "HBP", "SF"]}
-    total_ab = summed["AB"]
-    total_obp_den = total_ab + summed["BB"] + summed["HBP"] + summed["SF"]
-    total_avg = round(summed["H"] / total_ab, 3) if total_ab else float("nan")
-    total_obp = ((summed["H"] + summed["BB"] + summed["HBP"]) / total_obp_den
-                 if total_obp_den else float("nan"))
-    total_slg = summed["TB"] / total_ab if total_ab else float("nan")
-    total_ops = round(total_obp + total_slg, 3)
-    total = {"Conteo": "TOTAL", "PA finalizadas": summed["PA finalizadas"],
-             "H": summed["H"], "AB": total_ab,
-             "AVG": total_avg, "OPS": total_ops}
-    return pd.concat([group[columns], pd.DataFrame([total], columns=columns)],
-                     ignore_index=True)
+    total_ab = int(group["AB"].sum())
+    total_h = int(group["H"].sum())
+    total = {"Conteo": "TOTAL", "AB": total_ab, "H": total_h,
+             "AVG": round(total_h / total_ab, 3) if total_ab else float("nan")}
+    return pd.concat([group[columns], pd.DataFrame([total], columns=columns)], ignore_index=True)
 
 
 def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, int, int] | None:
@@ -827,9 +794,8 @@ else:
                         if count_table.empty:
                             st.caption("No hay apariciones confirmadas con conteo final disponible.")
                         else:
-                            render_table(count_table, ["Conteo", "PA finalizadas", "H", "AB", "AVG", "OPS"],
-                                         {"AVG": ".3f", "OPS": ".3f"})
-                            st.caption("Conteo previo al lanzamiento final de cada aparición. AVG y OPS se calculan con resultados clasificables; las PA incluyen todas las confirmadas con conteo.")
+                            render_table(count_table, ["Conteo", "AB", "H", "AVG"], {"AVG": ".3f"})
+                            st.caption("Solo turnos oficiales al bate (AB), agrupados por el conteo anterior al lanzamiento final. Se excluyen bases por bolas, pelotazos y sacrificios sin AB.")
 
                 elif tab == "Defensiva":
                     r = d.iloc[0]
