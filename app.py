@@ -141,6 +141,19 @@ st.markdown("""
         letter-spacing: -0.3px !important;
         white-space: nowrap !important;
     }
+
+    /* Distribución de AB: barras que crecen hacia la izquierda. */
+    .dridma-count-table .dridma-ab-track {
+        width: 108px; height: 13px; background: #EAF0F7;
+        border-radius: 3px; display: flex; justify-content: flex-end;
+        margin-left: auto; overflow: hidden;
+    }
+    .dridma-count-table .dridma-ab-fill {
+        height: 100%; background: #4A90D9; border-radius: 3px;
+    }
+    .dridma-count-table .dridma-count-total td {
+        font-weight: 750; border-top: 2px solid #AEBBD0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -258,6 +271,42 @@ def render_table(df: pd.DataFrame, columns: list[str], formats: dict[str, str] |
         rows.append("<tr>" + "".join(cells) + "</tr>")
     html = ('<div class="dridma-scroll"><table class="dridma-table"><thead><tr>'
             + headers + '</tr></thead><tbody>' + "".join(rows) + '</tbody></table></div>')
+    st.markdown(html, unsafe_allow_html=True)
+
+
+
+def render_count_performance(df: pd.DataFrame) -> None:
+    """Tabla por conteo con barras de AB alineadas a la derecha.
+
+    Las barras se escalan respecto al máximo AB entre conteos individuales;
+    TOTAL no tiene barra y mantiene sus valores numéricos.
+    """
+    headers = ["Conteo", "Distribución", "AB", "H", "AVG"]
+    max_ab = pd.to_numeric(
+        df.loc[df["Conteo"].astype(str).ne("TOTAL"), "AB"], errors="coerce"
+    ).max()
+    max_ab = float(max_ab) if pd.notna(max_ab) and max_ab > 0 else 0.0
+    body = []
+    for _, item in df.iterrows():
+        count = str(item["Conteo"])
+        total = count == "TOTAL"
+        ab = item["AB"]
+        hits = item["H"]
+        avg = item["AVG"]
+        width = (100.0 * float(ab) / max_ab) if max_ab and pd.notna(ab) and not total else 0.0
+        bar = (f'<div class="dridma-ab-track"><div class="dridma-ab-fill" '
+               f'style="width:{width:.2f}%"></div></div>') if not total else ""
+        avg_text = f"{float(avg):.3f}" if pd.notna(avg) else "—"
+        ab_text = f"{int(ab)}" if pd.notna(ab) else "—"
+        hits_text = f"{int(hits)}" if pd.notna(hits) else "—"
+        row_class = ' class="dridma-count-total"' if total else ""
+        body.append(f'<tr{row_class}><td>{escape(count)}</td><td>{bar}</td>'
+                    f'<td>{escape(ab_text)}</td><td>{escape(hits_text)}</td>'
+                    f'<td>{escape(avg_text)}</td></tr>')
+    th = "".join(f"<th>{escape(h)}</th>" for h in headers)
+    html = ('<div class="dridma-scroll"><table class="dridma-table dridma-count-table">'
+            '<thead><tr>' + th + '</tr></thead><tbody>' + "".join(body) +
+            '</tbody></table></div>')
     st.markdown(html, unsafe_allow_html=True)
 
 
@@ -794,7 +843,7 @@ else:
                         if count_table.empty:
                             st.caption("No hay apariciones confirmadas con conteo final disponible.")
                         else:
-                            render_table(count_table, ["Conteo", "AB", "H", "AVG"], {"AVG": ".3f"})
+                            render_count_performance(count_table)
                             st.caption("Solo turnos oficiales al bate (AB), agrupados por el conteo anterior al lanzamiento final. Se excluyen bases por bolas, pelotazos y sacrificios sin AB.")
 
                 elif tab == "Defensiva":
