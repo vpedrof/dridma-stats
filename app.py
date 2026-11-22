@@ -173,6 +173,29 @@ STAT_HELP = {
     "Lanzador": "Lanzador rival (apellido e inicial)",
 }
 
+def short_player_name(full_name: str) -> str:
+    """Abreviar solo para visualización, sin alterar claves ni agrupaciones.
+
+    DRIDMA: Nombre(s) Apellido(s) -> Primer apellido + inicial del nombre.
+    Rivales: APELLIDO(S) Nombre(s) -> Primer apellido + inicial del nombre.
+    """
+    name = " ".join(str(full_name).split())
+    if not name or name.lower() in ("nan", "desconocido", "total"):
+        return name
+    parts = name.split()
+    if len(parts) < 2:
+        return name
+    if re.match(r"^DE\s+QUINT(?:\s|$)", name, flags=re.IGNORECASE):
+        first_given = next((part for part in parts[2:] if part != part.upper()), None)
+        return f"De Quint {first_given[0].upper()}." if first_given else name
+    first_given_idx = next((i for i, part in enumerate(parts[1:], 1)
+                            if any(c.isalpha() for c in part) and part != part.upper()), None)
+    if parts[0] == parts[0].upper() and first_given_idx is not None:
+        return f"{parts[0].capitalize()} {parts[first_given_idx][0].upper()}."
+    # Nombres normalizados de DRIDMA: Pedro Vargas -> Vargas P.
+    return f"{parts[-1].capitalize()} {parts[0][0].upper()}."
+
+
 def render_table(df: pd.DataFrame, columns: list[str], formats: dict[str, str] | None = None) -> None:
     """Tabla HTML con primera columna fija y desplazamiento horizontal."""
     formats = formats or {}
@@ -190,6 +213,8 @@ def render_table(df: pd.DataFrame, columns: list[str], formats: dict[str, str] |
                 display = f"{value:g}"
             else:
                 display = str(value)
+            if col in ("Jugador", "Lanzador") and display != "—":
+                display = short_player_name(display)
             cells.append(f"<td>{escape(display)}</td>")
         rows.append("<tr>" + "".join(cells) + "</tr>")
     html = ('<div class="dridma-scroll"><table class="dridma-table"><thead><tr>'
@@ -424,19 +449,8 @@ def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, 
 
 
 def short_pitcher_name(full_name: str) -> str:
-    """Display first surname and initial of first given name."""
-    name = " ".join(str(full_name).split())
-    if not name or name == "Desconocido":
-        return name
-    if re.match(r"^DE\s+QUINT(?:\s|$)", name, flags=re.IGNORECASE):
-        return "De Quint D."
-    parts = name.split()
-    # Source convention: one/two uppercase surnames followed by title-case given names.
-    first_given = next((i for i, part in enumerate(parts[1:], 1)
-                        if any(c.isalpha() for c in part) and part != part.upper()), None)
-    if first_given is None:
-        return name  # Avoid inventing a given name when source format differs.
-    return f"{parts[0].capitalize()} {parts[first_given][0].upper()}."
+    """Formato visual común para lanzadores y jugadores."""
+    return short_player_name(full_name)
 
 
 def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, str]) -> tuple[pd.DataFrame, int]:
@@ -495,7 +509,7 @@ with t5:
         st.markdown(
             '<div class="dridma-profile">'
             '<div class="dridma-profile-label">DRIDMA RIVAS · JUGADORES</div>'
-            f'<div class="dridma-profile-name">{escape(str(player))}</div>'
+            f'<div class="dridma-profile-name">{escape(short_player_name(player))}</div>'
             f'<div class="dridma-profile-sub">{len(selected)} torneo(s) seleccionado(s)</div>'
             '</div>', unsafe_allow_html=True
         )
