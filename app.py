@@ -522,8 +522,8 @@ def offensive_count_performance(turns_df: pd.DataFrame, pitches_df: pd.DataFrame
         return pd.DataFrame(columns=columns)
     group = t.groupby("Conteo", as_index=False).agg(AB=("AB", "sum"), H=("H", "sum"))
     group["AVG"] = divide(group["H"], group["AB"]).round(3)
-    group["sort_key"] = group["Conteo"].map(lambda c: int(c[0]) * 3 + int(c[2]))
-    group = group.sort_values("sort_key")
+    # Ordenar por AB descendente; desempatar por H y luego por conteo.
+    group = group.sort_values(["AB", "H", "Conteo"], ascending=[False, False, True])
     total_ab = int(group["AB"].sum())
     total_h = int(group["H"].sum())
     total = {"Conteo": "TOTAL", "AB": total_ab, "H": total_h,
