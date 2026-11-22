@@ -30,7 +30,7 @@ st.markdown("""
     .dridma-kpi-label { font-size: clamp(.64rem,2.5vw,.92rem); color: #FFFFFF; font-weight: 700; text-transform: uppercase; letter-spacing: .025em; white-space: nowrap; }
     .dridma-kpi-value { font-size: clamp(2rem,8vw,3.15rem); font-weight: 850; color: #FF6500; line-height: 1.15; margin-top: 3px; }
     div[data-testid="stTabs"] button { font-weight: 700; color: #09244D; }
-    /* Forzar cinco pestañas dentro del ancho disponible en móvil. */
+    /* Pestañas compactas y adaptables a la pantalla. */
     div[data-testid="stTabs"] [data-baseweb="tab-list"] {
         display: flex !important;
         width: 100% !important;
@@ -40,10 +40,10 @@ st.markdown("""
         overflow: visible !important;
     }
     div[data-testid="stTabs"] [data-baseweb="tab"] {
-        flex: 1 1 20% !important;
-        width: 20% !important;
+        flex: 1 1 auto !important;
+        width: auto !important;
         min-width: 0 !important;
-        max-width: 20% !important;
+        max-width: auto !important;
         padding: .55rem 0 !important;
         justify-content: center !important;
     }
@@ -329,111 +329,6 @@ PLAYER_SHORT_NAMES = {
     for original, clean in mapping.items()
 }
 
-tournaments = sorted(results["TORNEO"].dropna().unique().tolist())
-selected = st.multiselect("Torneos", tournaments, default=tournaments)
-if not selected:
-    st.info("Selecciona al menos un torneo.")
-    st.stop()
-
-offense = offense[offense["TORNEO"].isin(selected)].copy()
-defense = defense[defense["TORNEO"].isin(selected)].copy()
-pitching = pitching[pitching["TORNEO"].isin(selected)].copy()
-results = results[results["TORNEO"].isin(selected)].copy()
-turns = turns[turns["TORNEO"].isin(selected)].copy()
-
-for frame in (offense, defense, pitching):
-    frame["Jugador"] = frame["Jugador"].astype(str).str.strip()
-    frame["Jugador"] = frame["Jugador"].map(mapping).fillna(frame["Jugador"])
-
-results[["Carreras", "Carreras2"]] = results[["Carreras", "Carreras2"]].apply(pd.to_numeric, errors="coerce")
-wins = ((results["Equipo 1"].eq("DRI") & (results["Carreras"] > results["Carreras2"])) |
-        (results["Equipo 2"].eq("DRI") & (results["Carreras2"] > results["Carreras"]))).sum()
-losses = ((results["Equipo 1"].eq("DRI") & (results["Carreras"] < results["Carreras2"])) |
-          (results["Equipo 2"].eq("DRI") & (results["Carreras2"] < results["Carreras"]))).sum()
-
-kpis = [("Partidos", len(results)), ("Victorias", int(wins)), ("Derrotas", int(losses))]
-items = "".join(
-    f'<div class="dridma-kpi"><div class="dridma-kpi-label">{escape(label)}</div>'
-    f'<div class="dridma-kpi-value">{value}</div></div>'
-    for label, value in kpis
-)
-st.markdown(f'<div class="dridma-kpis">{items}</div>', unsafe_allow_html=True)
-
-# Glosario accesible desde cualquier pestaña; contraído por defecto.
-with st.expander("📖 Glosario de estadísticas y torneos", expanded=False):
-    st.caption("Consulta las abreviaturas utilizadas en las tablas. En ordenador, también puedes situar el cursor sobre los encabezados para ver su definición.")
-    glossary_groups = {
-        "Ofensiva": ["AB", "H", "2B", "3B", "HR", "RBI", "R", "BB", "SO", "K", "AVG", "OBP", "SLG", "OPS", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"],
-        "Defensiva": ["PO", "A", "E", "DP", "PB"],
-        "Picheo": ["IP", "H", "R", "ER", "BB", "K", "EFE", "Picheos", "Strikes"],
-    }
-    for group_name, abbreviations in glossary_groups.items():
-        st.markdown(f"**{group_name}**")
-        glossary_df = pd.DataFrame({"Abreviatura": abbreviations,
-                                    "Significado": [STAT_HELP[abbr] for abbr in abbreviations]})
-        st.dataframe(glossary_df, hide_index=True, use_container_width=True,
-                     column_config={"Abreviatura": st.column_config.TextColumn(width="small"),
-                                    "Significado": st.column_config.TextColumn(width="large")})
-    st.markdown("**Torneos**")
-    st.dataframe(pd.DataFrame({"Código": ["SC25", "SC26", "MC25", "MC26"],
-                               "Torneo": ["Super Cup 2025", "Super Cup 2026", "Masters Cup 2025", "Masters Cup 2026"]}),
-                 hide_index=True, use_container_width=True)
-
-# Calcular una sola vez los acumulados para tablas y fichas individuales.
-offense_fields = ["AB", "H", "BB", "R", "RBI", "SO", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"]
-offense = numeric(offense, offense_fields)
-offense_table = offense.groupby("Jugador", as_index=False)[offense_fields].sum()
-offense_table["AVG"] = divide(offense_table["H"], offense_table["AB"]).round(3)
-obp = divide(offense_table["H"] + offense_table["BB"] + offense_table["HBP"],
-             offense_table["AB"] + offense_table["BB"] + offense_table["HBP"] + offense_table["SF"])
-slg = divide(offense_table["TB"], offense_table["AB"])
-offense_table["OPS"] = ((obp.fillna(0) + slg.fillna(0)) * 1000).round().astype(int)
-offense_table = offense_table.rename(columns={"SO": "K"})
-
-defense_fields = ["A", "PO", "E", "DP", "PB"]
-defense = numeric(defense, defense_fields)
-defense_table = defense.groupby("Jugador", as_index=False)[defense_fields].sum()
-
-pitching_fields = ["H", "R", "ER", "BB", "K", "Picheos", "Strikes"]
-pitching = numeric(pitching, pitching_fields + ["IP"])
-# IP se almacena como entradas.tercios (p.ej. 5.2 = 5 entradas y 2 outs).
-whole_innings = pitching["IP"].astype(int)
-partial_outs = ((pitching["IP"] - whole_innings) * 10).round().astype(int)
-if not partial_outs.isin([0, 1, 2]).all():
-    st.error("Hay valores de IP no válidos en db_Picheo.")
-    st.stop()
-pitching["OUTS"] = whole_innings * 3 + partial_outs
-pitching_table = pitching.groupby("Jugador", as_index=False)[pitching_fields + ["OUTS"]].sum()
-pitching_table["IP"] = (pitching_table["OUTS"] // 3).astype(str) + "." + (pitching_table["OUTS"] % 3).astype(str)
-pitching_table["EFE"] = divide(7 * pitching_table["ER"], pitching_table["OUTS"] / 3).round(2)
-
-# Solo jugadores con registros en alguno de los torneos seleccionados.
-players = sorted(set(offense_table["Jugador"]) | set(defense_table["Jugador"]) | set(pitching_table["Jugador"]))
-
-def player_section(title: str, table: pd.DataFrame, player: str, cols: list[str], formats: dict[str, str] | None = None) -> None:
-    record = table.loc[table["Jugador"] == player]
-    if record.empty:
-        return
-    st.markdown(f'<div class="dridma-section">{escape(title)}</div>', unsafe_allow_html=True)
-    render_table(record, ["Jugador"] + cols, formats)
-
-t1, t2, t3, t4, t5 = st.tabs(["Ofens", "Defens", "Picheo", "Scores", "Jugadores"])
-
-with t1:
-    render_table(offense_table.sort_values(["AVG", "H"], ascending=False),
-                 ["Jugador", "AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"],
-                 {"AVG": ".3f"})
-
-with t2:
-    render_table(defense_table.sort_values("PO", ascending=False), ["Jugador", "PO", "A", "E", "DP", "PB"])
-
-with t3:
-    render_table(pitching_table.sort_values("K", ascending=False),
-                 ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
-
-with t4:
-    render_games(results.sort_values("Fecha"))
-
 def stat_cards(stats: list[tuple[str, str]]) -> None:
     blocks = "".join(
         '<div class="dridma-stat"><div class="dridma-stat-label">'
@@ -538,27 +433,153 @@ def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, 
     return summary[["Lanzador", "Equipo", "AB", "H", "HR", "RBI", "BB", "SO", "AVG"]], unresolved
 
 
-with t5:
-    if not players:
-        st.info("No hay jugadores registrados en los torneos seleccionados.")
+
+# ETAPA 1: navegación y filtros independientes; los detalles individuales
+# permanecen en su formato original hasta la etapa 2.
+def tournament_filter(key: str, available: list[str]) -> list[str]:
+    """Casillas desplegables, con selección inicial completa y controles rápidos."""
+    state_key = f"{key}_selected"
+    if state_key not in st.session_state:
+        st.session_state[state_key] = list(available)
     else:
-        # El selector comienza vacío y puede limpiarse con un toque para buscar otro.
-        if st.session_state.get("dridma_player") not in players:
-            st.session_state["dridma_player"] = None
+        st.session_state[state_key] = [t for t in st.session_state[state_key] if t in available]
+    with st.expander(f"Seleccionar torneos · {len(st.session_state[state_key])} de {len(available)}", expanded=False):
+        a, b = st.columns(2)
+        if a.button("Todos", key=f"{key}_all", use_container_width=True):
+            st.session_state[state_key] = list(available)
+            for t in available:
+                st.session_state[f"{key}_check_{t}"] = True
+        if b.button("Ninguno", key=f"{key}_none", use_container_width=True):
+            st.session_state[state_key] = []
+            for t in available:
+                st.session_state[f"{key}_check_{t}"] = False
+        current = set(st.session_state[state_key])
+        for t in available:
+            checked = st.checkbox(str(t), value=t in current, key=f"{key}_check_{t}")
+            if checked:
+                current.add(t)
+            else:
+                current.discard(t)
+        st.session_state[state_key] = [t for t in available if t in current]
+    return list(st.session_state[state_key])
 
-        def limpiar_jugador():
-            st.session_state["dridma_player"] = None
 
-        player = st.selectbox(
-            "Seleccionar jugador", players, index=None,
-            placeholder="Escribe para buscar un jugador...", key="dridma_player"
+def aggregate_tables(offense: pd.DataFrame, defense: pd.DataFrame, pitching: pd.DataFrame):
+    """Conserva las fórmulas y las columnas de las tablas originales."""
+    offense_fields = ["AB", "H", "BB", "R", "RBI", "SO", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"]
+    defense_fields = ["A", "PO", "E", "DP", "PB"]
+    pitching_fields = ["H", "R", "ER", "BB", "K", "Picheos", "Strikes"]
+    offense = numeric(offense, offense_fields)
+    offense_table = offense.groupby("Jugador", as_index=False)[offense_fields].sum()
+    offense_table["AVG"] = divide(offense_table["H"], offense_table["AB"]).round(3)
+    obp = divide(offense_table["H"] + offense_table["BB"] + offense_table["HBP"],
+                 offense_table["AB"] + offense_table["BB"] + offense_table["HBP"] + offense_table["SF"])
+    slg = divide(offense_table["TB"], offense_table["AB"])
+    offense_table["OPS"] = ((obp.fillna(0) + slg.fillna(0)) * 1000).round().astype(int)
+    offense_table = offense_table.rename(columns={"SO": "K"})
+    defense = numeric(defense, defense_fields)
+    defense_table = defense.groupby("Jugador", as_index=False)[defense_fields].sum()
+    pitching = numeric(pitching, pitching_fields + ["IP"])
+    whole_innings = pitching["IP"].astype(int)
+    partial_outs = ((pitching["IP"] - whole_innings) * 10).round().astype(int)
+    if not partial_outs.isin([0, 1, 2]).all():
+        st.error("Hay valores de IP no válidos en db_Picheo.")
+        st.stop()
+    pitching["OUTS"] = whole_innings * 3 + partial_outs
+    pitching_table = pitching.groupby("Jugador", as_index=False)[pitching_fields + ["OUTS"]].sum()
+    pitching_table["IP"] = (pitching_table["OUTS"] // 3).astype(str) + "." + (pitching_table["OUTS"] % 3).astype(str)
+    pitching_table["EFE"] = divide(7 * pitching_table["ER"], pitching_table["OUTS"] / 3).round(2)
+    return offense, defense, pitching, offense_table, defense_table, pitching_table, offense_fields, defense_fields, pitching_fields
+
+
+for frame in (offense, defense, pitching):
+    frame["Jugador"] = frame["Jugador"].astype(str).str.strip()
+    frame["Jugador"] = frame["Jugador"].map(mapping).fillna(frame["Jugador"])
+
+tournaments = sorted(results["TORNEO"].dropna().unique().tolist())
+all_players = sorted(set(offense["Jugador"]) | set(defense["Jugador"]) | set(pitching["Jugador"]))
+main = st.segmented_control("Sección", ["Equipo", "Jugadores"], default="Equipo",
+                            key="dridma_main_menu", label_visibility="collapsed")
+
+# Glosario único y global.
+with st.expander("❔ ¿Qué significan las abreviaturas?", expanded=False):
+    st.caption("Consulta las abreviaturas utilizadas en las tablas.")
+    glossary_groups = {
+        "Ofensiva": ["AB", "H", "2B", "3B", "HR", "RBI", "R", "BB", "SO", "K", "AVG", "OBP", "SLG", "OPS", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"],
+        "Defensiva": ["PO", "A", "E", "DP", "PB"],
+        "Picheo": ["IP", "H", "R", "ER", "BB", "K", "EFE", "Picheos", "Strikes"],
+    }
+    for group_name, abbreviations in glossary_groups.items():
+        st.markdown(f"**{group_name}**")
+        glossary_df = pd.DataFrame({"Abreviatura": abbreviations,
+                                    "Significado": [STAT_HELP[abbr] for abbr in abbreviations]})
+        st.dataframe(glossary_df, hide_index=True, use_container_width=True,
+                     column_config={"Abreviatura": st.column_config.TextColumn(width="small"),
+                                    "Significado": st.column_config.TextColumn(width="large")})
+    st.markdown("**Torneos**")
+    st.dataframe(pd.DataFrame({"Código": ["SC25", "SC26", "MC25", "MC26"],
+                               "Torneo": ["Super Cup 2025", "Super Cup 2026", "Masters Cup 2025", "Masters Cup 2026"]}),
+                 hide_index=True, use_container_width=True)
+
+
+if main == "Equipo":
+    selected = tournament_filter("dridma_team", tournaments)
+    if not selected:
+        st.info("Selecciona al menos un torneo para visualizar las estadísticas.")
+    else:
+        o = offense.loc[offense["TORNEO"].isin(selected)].copy()
+        d = defense.loc[defense["TORNEO"].isin(selected)].copy()
+        p = pitching.loc[pitching["TORNEO"].isin(selected)].copy()
+        r = results.loc[results["TORNEO"].isin(selected)].copy()
+        o, d, p, offense_table, defense_table, pitching_table, offense_fields, defense_fields, pitching_fields = aggregate_tables(o, d, p)
+        r[["Carreras", "Carreras2"]] = r[["Carreras", "Carreras2"]].apply(pd.to_numeric, errors="coerce")
+        wins = ((r["Equipo 1"].eq("DRI") & (r["Carreras"] > r["Carreras2"])) |
+                (r["Equipo 2"].eq("DRI") & (r["Carreras2"] > r["Carreras"]))).sum()
+        losses = ((r["Equipo 1"].eq("DRI") & (r["Carreras"] < r["Carreras2"])) |
+                  (r["Equipo 2"].eq("DRI") & (r["Carreras2"] < r["Carreras"]))).sum()
+        items = "".join(
+            f'<div class="dridma-kpi"><div class="dridma-kpi-label">{escape(label)}</div>'
+            f'<div class="dridma-kpi-value">{value}</div></div>'
+            for label, value in [("Partidos", len(r)), ("Victorias", int(wins)), ("Derrotas", int(losses))]
         )
-        if player is not None:
-            st.button("⌕ Buscar otro jugador", on_click=limpiar_jugador, key="dridma_clear_player")
+        st.markdown(f'<div class="dridma-kpis">{items}</div>', unsafe_allow_html=True)
+        tab = st.segmented_control("Estadísticas del equipo",
+                 ["Ofensiva", "Defensiva", "Picheo", "Scores"], default="Ofensiva",
+                 key="dridma_team_tab", label_visibility="collapsed")
+        if tab == "Ofensiva":
+            render_table(offense_table.sort_values(["AVG", "H"], ascending=False),
+                ["Jugador", "AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"], {"AVG": ".3f"})
+        elif tab == "Defensiva":
+            render_table(defense_table.sort_values("PO", ascending=False), ["Jugador", "PO", "A", "E", "DP", "PB"])
+        elif tab == "Picheo":
+            render_table(pitching_table.sort_values("K", ascending=False),
+                ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
         else:
-            st.caption("Selecciona un jugador para ver su ficha.")
-
-    if players and player is not None:
+            render_games(r.sort_values("Fecha"))
+else:
+    player = st.selectbox("Buscar jugador", all_players, index=None,
+                          placeholder="Escribe para buscar un jugador...", key="dridma_player")
+    if player is None:
+        st.caption("Selecciona un jugador para consultar sus estadísticas.")
+    else:
+        available = sorted(set(offense.loc[offense["Jugador"].eq(player), "TORNEO"]) |
+                           set(defense.loc[defense["Jugador"].eq(player), "TORNEO"]) |
+                           set(pitching.loc[pitching["Jugador"].eq(player), "TORNEO"]))
+        if st.session_state.get("dridma_previous_player") != player:
+            st.session_state["dridma_player_tournaments_selected"] = list(available)
+            st.session_state["dridma_previous_player"] = player
+            # Sincronizar widgets de casillas antes de crearlos.
+            for t in tournaments:
+                st.session_state[f"dridma_player_tournaments_check_{t}"] = t in available
+        selected = tournament_filter("dridma_player_tournaments", available)
+        if not selected:
+            st.info("Selecciona al menos un torneo para visualizar las estadísticas.")
+        else:
+            offense = offense.loc[offense["TORNEO"].isin(selected)].copy()
+            defense = defense.loc[defense["TORNEO"].isin(selected)].copy()
+            pitching = pitching.loc[pitching["TORNEO"].isin(selected)].copy()
+            turns = turns.loc[turns["TORNEO"].isin(selected)].copy()
+            offense, defense, pitching, offense_table, defense_table, pitching_table, offense_fields, defense_fields, pitching_fields = aggregate_tables(offense, defense, pitching)
         st.markdown(
             '<div class="dridma-profile">'
             '<div class="dridma-profile-label">DRIDMA RIVAS · JUGADORES</div>'
@@ -641,5 +662,4 @@ with t5:
             if not detail.empty:
                 with st.expander("Picheo por torneo"):
                     render_table(detail, list(detail.columns), {"EFE": ".2f"})
-
 st.markdown('<div class="dridma-footer">DRIDMA RIVAS · Estadísticas del equipo</div>', unsafe_allow_html=True)
