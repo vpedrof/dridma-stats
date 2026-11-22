@@ -213,7 +213,7 @@ def render_table(df: pd.DataFrame, columns: list[str], formats: dict[str, str] |
                 display = f"{value:g}"
             else:
                 display = str(value)
-            if col in ("Jugador", "Lanzador") and display != "—":
+            if col == "Jugador" and display != "—":
                 display = short_player_name(display)
             cells.append(f"<td>{escape(display)}</td>")
         rows.append("<tr>" + "".join(cells) + "</tr>")
