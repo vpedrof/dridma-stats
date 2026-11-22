@@ -281,7 +281,7 @@ def render_count_performance(df: pd.DataFrame) -> None:
     Las barras se escalan respecto al máximo AB entre conteos individuales;
     TOTAL no tiene barra y mantiene sus valores numéricos.
     """
-    headers = ["Conteo", "Distribución", "AB", "H", "AVG"]
+    headers = ["Conteo", "AB-▰", "AB", "H", "AVG"]
     max_ab = pd.to_numeric(
         df.loc[df["Conteo"].astype(str).ne("TOTAL"), "AB"], errors="coerce"
     ).max()
