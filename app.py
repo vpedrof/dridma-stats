@@ -433,6 +433,71 @@ def plate_discipline_by_tournament(turns_df: pd.DataFrame, pitches_df: pd.DataFr
     return totals[["TORNEO", "P/PA", "1st Pitch Swing%", "AVG", "AVG RISP"]]
 
 
+def offensive_count_performance(turns_df: pd.DataFrame, pitches_df: pd.DataFrame,
+                                player: str, name_map: dict[str, str]) -> pd.DataFrame:
+    """Resultados de PA confirmadas por conteo ANTES del último lanzamiento.
+
+    AVG=H/AB; OPS=(H+BB+HBP)/(AB+BB+HBP+SF)+TB/AB.
+    Las PA sin resultado ofensivo clasificable se incluyen en PA, pero no se
+    inventan AB/H/TB para ellas.
+    """
+    columns = ["Conteo", "PA finalizadas", "AVG", "OPS"]
+    required_t = {"Turno_ID", "Equipo_Bateador", "Bateador", "PA_Confirmada", "Resultado"}
+    required_p = {"Turno_ID", "Pitch_No", "Bolas_Antes", "Strikes_Antes"}
+    if not required_t.issubset(turns_df.columns) or not required_p.issubset(pitches_df.columns):
+        return pd.DataFrame(columns=columns)
+    t = turns_df.copy()
+    player_names = t["Bateador"].astype(str).str.strip()
+    player_names = player_names.map(name_map).fillna(player_names)
+    t = t.loc[t["Equipo_Bateador"].astype(str).str.strip().str.upper().eq("DRI")
+              & player_names.eq(player)
+              & t["PA_Confirmada"].astype(str).str.lower().isin(["true", "1", "yes"])].copy()
+    t = t.drop_duplicates("Turno_ID")
+    if t.empty:
+        return pd.DataFrame(columns=columns)
+    p = pitches_df.loc[pitches_df["Turno_ID"].isin(t["Turno_ID"])].copy()
+    for col in ["Pitch_No", "Bolas_Antes", "Strikes_Antes"]:
+        p[col] = pd.to_numeric(p[col], errors="coerce")
+    p = p.dropna(subset=["Pitch_No", "Bolas_Antes", "Strikes_Antes"])
+    p = p.sort_values("Pitch_No").drop_duplicates("Turno_ID", keep="last")
+    t = t.merge(p[["Turno_ID", "Bolas_Antes", "Strikes_Antes"]], on="Turno_ID", how="inner")
+    t = t.loc[t["Bolas_Antes"].between(0, 3) & t["Strikes_Antes"].between(0, 2)].copy()
+    if t.empty:
+        return pd.DataFrame(columns=columns)
+    t["Conteo"] = t["Bolas_Antes"].astype(int).astype(str) + "-" + t["Strikes_Antes"].astype(int).astype(str)
+
+    def outcome(result):
+        if not isinstance(result, str):
+            return (0, 0, 0, 0, 0, 0, 0)
+        value = result.lower()
+        parsed = offensive_event_stats(result, True)
+        if parsed is None:
+            return (0, 0, 0, 0, 0, 0, 0)
+        ab, hit, _, bb, _ = parsed
+        hbp = int(bool(re.search(r"\bhit by (?:a )?pitch\b", value)))
+        sf = int(bool(re.search(r"\bsacrifice fly\b|\bsac fly\b", value)))
+        tb = 0
+        if hit:
+            tb = (4 if re.search(r"\bhomers?\b|\bhome runs?\b", value)
+                  else 3 if re.search(r"\btriples?\b", value)
+                  else 2 if re.search(r"\bdoubles?\b", value) else 1)
+        return (ab, hit, tb, bb, hbp, sf, 1)
+
+    t[["AB", "H", "TB", "BB", "HBP", "SF", "Clasificado"]] = pd.DataFrame(
+        t["Resultado"].map(outcome).tolist(), index=t.index)
+    group = t.groupby("Conteo", as_index=False).agg(**{
+        "PA finalizadas": ("Turno_ID", "size"), "AB": ("AB", "sum"),
+        "H": ("H", "sum"), "TB": ("TB", "sum"), "BB": ("BB", "sum"),
+        "HBP": ("HBP", "sum"), "SF": ("SF", "sum")})
+    group["AVG"] = divide(group["H"], group["AB"]).round(3)
+    obp = divide(group["H"] + group["BB"] + group["HBP"],
+                 group["AB"] + group["BB"] + group["HBP"] + group["SF"])
+    slg = divide(group["TB"], group["AB"])
+    group["OPS"] = (obp + slg).round(3)
+    group["sort_key"] = group["Conteo"].map(lambda c: int(c[0]) * 3 + int(c[2]))
+    return group.sort_values("sort_key")[columns]
+
+
 def offensive_event_stats(result: str, confirmed: bool) -> tuple[int, int, int, int, int] | None:
     """AB, H, HR, BB, SO for a confirmed plate appearance."""
     if not confirmed or not isinstance(result, str) or not result.strip():
@@ -739,6 +804,15 @@ else:
                             st.caption("No hay apariciones confirmadas con lanzamientos registrados para este jugador.")
                         else:
                             render_table(discipline, ["TORNEO", "P/PA", "1st Pitch Swing%", "AVG", "AVG RISP"], {"P/PA": ".2f", "AVG": ".3f", "AVG RISP": ".3f"})
+
+                    with st.expander("Rendimiento ofensivo según conteo", expanded=False):
+                        count_table = offensive_count_performance(player_turns, player_pitches, player, mapping)
+                        if count_table.empty:
+                            st.caption("No hay apariciones confirmadas con conteo final disponible.")
+                        else:
+                            render_table(count_table, ["Conteo", "PA finalizadas", "AVG", "OPS"],
+                                         {"AVG": ".3f", "OPS": ".3f"})
+                            st.caption("Conteo previo al lanzamiento final de cada aparición. AVG y OPS se calculan con resultados clasificables; las PA incluyen todas las confirmadas con conteo.")
 
                 elif tab == "Defensiva":
                     r = d.iloc[0]
