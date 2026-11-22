@@ -434,33 +434,42 @@ def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, 
 
 
 
-# ETAPA 1: navegación y filtros independientes; los detalles individuales
-# permanecen en su formato original hasta la etapa 2.
+# ETAPA 2: navegación y fichas individuales por categoría.
 def tournament_filter(key: str, available: list[str]) -> list[str]:
-    """Casillas desplegables, con selección inicial completa y controles rápidos."""
+    """Filtro independiente; botones y casillas coherentes entre reruns de Streamlit."""
+    available = list(available)
     state_key = f"{key}_selected"
     if state_key not in st.session_state:
-        st.session_state[state_key] = list(available)
-    else:
-        st.session_state[state_key] = [t for t in st.session_state[state_key] if t in available]
+        st.session_state[state_key] = available.copy()
+    st.session_state[state_key] = [t for t in st.session_state[state_key] if t in available]
+
+    def choose_all():
+        st.session_state[state_key] = available.copy()
+        for t in available:
+            st.session_state[f"{key}_check_{t}"] = True
+
+    def choose_none():
+        st.session_state[state_key] = []
+        for t in available:
+            st.session_state[f"{key}_check_{t}"] = False
+
+    def change_check(t):
+        current = set(st.session_state[state_key])
+        if st.session_state[f"{key}_check_{t}"]:
+            current.add(t)
+        else:
+            current.discard(t)
+        st.session_state[state_key] = [item for item in available if item in current]
+
     with st.expander(f"Seleccionar torneos · {len(st.session_state[state_key])} de {len(available)}", expanded=False):
         a, b = st.columns(2)
-        if a.button("Todos", key=f"{key}_all", use_container_width=True):
-            st.session_state[state_key] = list(available)
-            for t in available:
-                st.session_state[f"{key}_check_{t}"] = True
-        if b.button("Ninguno", key=f"{key}_none", use_container_width=True):
-            st.session_state[state_key] = []
-            for t in available:
-                st.session_state[f"{key}_check_{t}"] = False
-        current = set(st.session_state[state_key])
+        a.button("Todos", key=f"{key}_all", use_container_width=True, on_click=choose_all)
+        b.button("Ninguno", key=f"{key}_none", use_container_width=True, on_click=choose_none)
         for t in available:
-            checked = st.checkbox(str(t), value=t in current, key=f"{key}_check_{t}")
-            if checked:
-                current.add(t)
-            else:
-                current.discard(t)
-        st.session_state[state_key] = [t for t in available if t in current]
+            widget_key = f"{key}_check_{t}"
+            if widget_key not in st.session_state:
+                st.session_state[widget_key] = t in st.session_state[state_key]
+            st.checkbox(str(t), key=widget_key, on_change=change_check, args=(t,))
     return list(st.session_state[state_key])
 
 
@@ -498,6 +507,12 @@ for frame in (offense, defense, pitching):
 
 tournaments = sorted(results["TORNEO"].dropna().unique().tolist())
 all_players = sorted(set(offense["Jugador"]) | set(defense["Jugador"]) | set(pitching["Jugador"]))
+def save_team_tab():
+    st.session_state["dridma_team_tab_saved"] = st.session_state["dridma_team_tab"]
+
+def save_player_tab():
+    st.session_state["dridma_player_tab_saved"] = st.session_state["dridma_player_tab"]
+
 main = st.segmented_control("Sección", ["Equipo", "Jugadores"], default="Equipo",
                             key="dridma_main_menu", label_visibility="collapsed")
 
@@ -543,9 +558,11 @@ if main == "Equipo":
             for label, value in [("Partidos", len(r)), ("Victorias", int(wins)), ("Derrotas", int(losses))]
         )
         st.markdown(f'<div class="dridma-kpis">{items}</div>', unsafe_allow_html=True)
+        if "dridma_team_tab" not in st.session_state:
+            st.session_state["dridma_team_tab"] = st.session_state.get("dridma_team_tab_saved", "Ofensiva")
         tab = st.segmented_control("Estadísticas del equipo",
                  ["Ofensiva", "Defensiva", "Picheo", "Scores"], default="Ofensiva",
-                 key="dridma_team_tab", label_visibility="collapsed")
+                 key="dridma_team_tab", label_visibility="collapsed", on_change=save_team_tab)
         if tab == "Ofensiva":
             render_table(offense_table.sort_values(["AVG", "H"], ascending=False),
                 ["Jugador", "AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"], {"AVG": ".3f"})
@@ -557,8 +574,14 @@ if main == "Equipo":
         else:
             render_games(r.sort_values("Fecha"))
 else:
+    def remember_player():
+        st.session_state["dridma_player_saved"] = st.session_state["dridma_player"]
+
+    if "dridma_player" not in st.session_state:
+        st.session_state["dridma_player"] = st.session_state.get("dridma_player_saved")
     player = st.selectbox("Buscar jugador", all_players, index=None,
-                          placeholder="Escribe para buscar un jugador...", key="dridma_player")
+                          placeholder="Escribe para buscar un jugador...", key="dridma_player",
+                          on_change=remember_player)
     if player is None:
         st.caption("Selecciona un jugador para consultar sus estadísticas.")
     else:
@@ -575,91 +598,98 @@ else:
         if not selected:
             st.info("Selecciona al menos un torneo para visualizar las estadísticas.")
         else:
-            offense = offense.loc[offense["TORNEO"].isin(selected)].copy()
-            defense = defense.loc[defense["TORNEO"].isin(selected)].copy()
-            pitching = pitching.loc[pitching["TORNEO"].isin(selected)].copy()
-            turns = turns.loc[turns["TORNEO"].isin(selected)].copy()
-            offense, defense, pitching, offense_table, defense_table, pitching_table, offense_fields, defense_fields, pitching_fields = aggregate_tables(offense, defense, pitching)
-        st.markdown(
-            '<div class="dridma-profile">'
-            '<div class="dridma-profile-label">DRIDMA RIVAS · JUGADORES</div>'
-            f'<div class="dridma-profile-name">{escape(short_player_name(player))}</div>'
-            f'<div class="dridma-profile-sub">{len(selected)} torneo(s) seleccionado(s)</div>'
-            '</div>', unsafe_allow_html=True
-        )
+            player_offense = offense.loc[offense["TORNEO"].isin(selected)].copy()
+            player_defense = defense.loc[defense["TORNEO"].isin(selected)].copy()
+            player_pitching = pitching.loc[pitching["TORNEO"].isin(selected)].copy()
+            player_turns = turns.loc[turns["TORNEO"].isin(selected)].copy()
+            player_offense, player_defense, player_pitching, offense_table, defense_table, pitching_table, offense_fields, defense_fields, pitching_fields = aggregate_tables(
+                player_offense, player_defense, player_pitching
+            )
+            o = offense_table.loc[offense_table["Jugador"] == player]
+            d = defense_table.loc[defense_table["Jugador"] == player]
+            p = pitching_table.loc[pitching_table["Jugador"] == player]
+            available_tabs = [name for name, frame in [("Ofensiva", o), ("Defensiva", d), ("Picheo", p)] if not frame.empty]
+            if not available_tabs:
+                st.info("No hay estadísticas disponibles para este jugador en los torneos seleccionados.")
+            else:
+                previous_tab = st.session_state.get("dridma_player_tab", st.session_state.get("dridma_player_tab_saved"))
+                if previous_tab not in available_tabs:
+                    previous_tab = available_tabs[0]
+                st.session_state["dridma_player_tab"] = previous_tab
+                st.markdown(
+                    '<div class="dridma-profile">'
+                    '<div class="dridma-profile-label">DRIDMA RIVAS · JUGADORES</div>'
+                    f'<div class="dridma-profile-name">{escape(player)}</div>'
+                    f'<div class="dridma-profile-sub">{len(selected)} torneo(s) seleccionado(s)</div>'
+                    '</div>', unsafe_allow_html=True
+                )
+                tab = st.segmented_control("Estadísticas del jugador", available_tabs,
+                                           key="dridma_player_tab", label_visibility="collapsed", on_change=save_player_tab)
+                if tab == "Ofensiva":
+                    r = o.iloc[0]
+                    stat_cards([("AVG", f'{r["AVG"]:.3f}' if pd.notna(r["AVG"]) else "—"),
+                                ("OPS", str(int(r["OPS"]))), ("HR", str(int(r["HR"])))])
+                    render_table(o, ["Jugador", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"])
+                    detail = player_tournament_table(player_offense, player, offense_fields, "offense")
+                    if not detail.empty:
+                        with st.expander("Ofensiva por torneo"):
+                            detail_display = detail.copy()
+                            detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
+                            render_table(detail_display, list(detail_display.columns), {"AVG": ".3f"})
+                    # Ambos detalles parten de los mismos turnos confirmados de DRIDMA.
+                    versus, unresolved = offense_by_pitcher(player_turns, player, mapping)
+                    total_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
 
-        o = offense_table.loc[offense_table["Jugador"] == player]
-        d = defense_table.loc[defense_table["Jugador"] == player]
-        p = pitching_table.loc[pitching_table["Jugador"] == player]
+                    def add_total_row(frame: pd.DataFrame, label_column: str) -> pd.DataFrame:
+                        totals = frame[total_cols].sum()
+                        total_ab, total_h = int(totals["AB"]), int(totals["H"])
+                        total_row = {col: int(totals[col]) for col in total_cols}
+                        total_row[label_column] = "TOTAL"
+                        if label_column == "Lanzador":
+                            total_row["Equipo"] = ""
+                        total_row["AVG"] = round(total_h / total_ab, 3) if total_ab else float("nan")
+                        return pd.concat([frame, pd.DataFrame([total_row])], ignore_index=True)
 
-        if not o.empty:
-            r = o.iloc[0]
-            st.markdown('<div class="dridma-section">Ofensiva</div>', unsafe_allow_html=True)
-            stat_cards([("AVG", f'{r["AVG"]:.3f}' if pd.notna(r["AVG"]) else "—"),
-                        ("OPS", str(int(r["OPS"]))), ("HR", str(int(r["HR"])))])
-            render_table(o, ["Jugador", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"])
-            detail = player_tournament_table(offense, player, offense_fields, "offense")
-            if not detail.empty:
-                with st.expander("Ofensiva por torneo"):
-                    detail_display = detail.copy()
-                    detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
-                    render_table(detail_display, list(detail_display.columns), {"AVG": ".3f"})
-            # Ambos detalles parten de los mismos turnos confirmados de DRIDMA.
-            versus, unresolved = offense_by_pitcher(turns, player, mapping)
-            total_cols = ["AB", "H", "HR", "RBI", "BB", "SO"]
+                    with st.expander("Detalle contra equipos"):
+                        if versus.empty:
+                            st.caption("No hay turnos confirmados contra equipos rivales en los torneos seleccionados.")
+                        else:
+                            by_team = versus.groupby("Equipo", as_index=False)[total_cols].sum()
+                            by_team["AVG"] = divide(by_team["H"], by_team["AB"]).round(3)
+                            by_team = by_team.sort_values(["AB", "H", "Equipo"], ascending=[False, False, True])
+                            team_display = add_total_row(by_team, "Equipo")
+                            render_table(team_display, ["Equipo", *total_cols, "AVG"], {"AVG": ".3f"})
+                        if unresolved:
+                            st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
 
-            def add_total_row(frame: pd.DataFrame, label_column: str) -> pd.DataFrame:
-                totals = frame[total_cols].sum()
-                total_ab, total_h = int(totals["AB"]), int(totals["H"])
-                total_row = {col: int(totals[col]) for col in total_cols}
-                total_row[label_column] = "TOTAL"
-                if label_column == "Lanzador":
-                    total_row["Equipo"] = ""
-                total_row["AVG"] = round(total_h / total_ab, 3) if total_ab else float("nan")
-                return pd.concat([frame, pd.DataFrame([total_row])], ignore_index=True)
+                    with st.expander("Detalle contra lanzadores"):
+                        if versus.empty:
+                            st.caption("No hay turnos confirmados contra lanzadores en los torneos seleccionados.")
+                        else:
+                            versus_display = add_total_row(versus, "Lanzador")
+                            render_table(versus_display, ["Lanzador", "Equipo", *total_cols, "AVG"], {"AVG": ".3f"})
+                        if unresolved:
+                            st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
 
-            with st.expander("Detalle contra equipos"):
-                if versus.empty:
-                    st.caption("No hay turnos confirmados contra equipos rivales en los torneos seleccionados.")
-                else:
-                    by_team = versus.groupby("Equipo", as_index=False)[total_cols].sum()
-                    by_team["AVG"] = divide(by_team["H"], by_team["AB"]).round(3)
-                    by_team = by_team.sort_values(["AB", "H", "Equipo"], ascending=[False, False, True])
-                    team_display = add_total_row(by_team, "Equipo")
-                    render_table(team_display, ["Equipo", *total_cols, "AVG"], {"AVG": ".3f"})
-                if unresolved:
-                    st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
+                elif tab == "Defensiva":
+                    r = d.iloc[0]
+                    stat_cards([("PO", str(int(r["PO"]))), ("A", str(int(r["A"]))), ("E", str(int(r["E"])))])
+                    render_table(d, ["Jugador", "PO", "A", "E", "DP", "PB"])
+                    detail = player_tournament_table(player_defense, player, defense_fields, "defense")
+                    if not detail.empty:
+                        with st.expander("Defensiva por torneo"):
+                            detail_display = detail.copy()
+                            detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
+                            render_table(detail_display, list(detail_display.columns))
 
-            with st.expander("Detalle contra lanzadores"):
-                if versus.empty:
-                    st.caption("No hay turnos confirmados contra lanzadores en los torneos seleccionados.")
-                else:
-                    versus_display = add_total_row(versus, "Lanzador")
-                    render_table(versus_display, ["Lanzador", "Equipo", *total_cols, "AVG"], {"AVG": ".3f"})
-                if unresolved:
-                    st.caption(f"{unresolved} aparición(es) sin resultado confirmado o clasificable, excluidas de esta tabla.")
-
-        if not d.empty:
-            r = d.iloc[0]
-            st.markdown('<div class="dridma-section">Defensiva</div>', unsafe_allow_html=True)
-            stat_cards([("PO", str(int(r["PO"]))), ("A", str(int(r["A"]))), ("E", str(int(r["E"])))])
-            render_table(d, ["Jugador", "PO", "A", "E", "DP", "PB"])
-            detail = player_tournament_table(defense, player, defense_fields, "defense")
-            if not detail.empty:
-                with st.expander("Defensiva por torneo"):
-                    detail_display = detail.copy()
-                    detail_display["TORNEO"] = detail_display["TORNEO"].map(short_tournament_name)
-                    render_table(detail_display, list(detail_display.columns))
-
-        if not p.empty:
-            r = p.iloc[0]
-            st.markdown('<div class="dridma-section">Picheo</div>', unsafe_allow_html=True)
-            stat_cards([("IP", str(r["IP"])),
-                        ("EFE", f'{r["EFE"]:.2f}' if pd.notna(r["EFE"]) else "—"),
-                        ("K", str(int(r["K"])))])
-            render_table(p, ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
-            detail = player_tournament_table(pitching, player, pitching_fields + ["OUTS"], "pitching")
-            if not detail.empty:
-                with st.expander("Picheo por torneo"):
-                    render_table(detail, list(detail.columns), {"EFE": ".2f"})
+                elif tab == "Picheo":
+                    r = p.iloc[0]
+                    stat_cards([("IP", str(r["IP"])),
+                                ("EFE", f'{r["EFE"]:.2f}' if pd.notna(r["EFE"]) else "—"),
+                                ("K", str(int(r["K"])))])
+                    render_table(p, ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
+                    detail = player_tournament_table(player_pitching, player, pitching_fields + ["OUTS"], "pitching")
+                    if not detail.empty:
+                        with st.expander("Picheo por torneo"):
+                            render_table(detail, list(detail.columns), {"EFE": ".2f"})
 st.markdown('<div class="dridma-footer">DRIDMA RIVAS · Estadísticas del equipo</div>', unsafe_allow_html=True)
