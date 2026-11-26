@@ -179,6 +179,26 @@ st.markdown("""
         color: #FFFFFF; background: #FF6500;
     }
 
+
+    /* Navegación fija bajo la cabecera nativa de Streamlit (altura 3.75rem). */
+    .block-container { padding-top: 3.75rem !important; }
+    div.st-key-dridma_top_nav {
+        position: fixed !important; top: 3.75rem; left: 50%;
+        transform: translateX(-50%); width: 100%; max-width: 1100px;
+        box-sizing: border-box; padding: 0 .85rem; z-index: 999;
+        background: #FFFFFF; box-shadow: 0 3px 10px #09244D18;
+    }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button {
+        min-height: 58px; padding: 5px 0;
+    }
+    div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button {
+        min-height: 42px;
+    }
+    .dridma-topline { margin-top: 120px !important; }
+    .block-container:has(.st-key-dridma_top_nav):not(:has(.st-key-dridma_sub_nav_row)) .dridma-topline {
+        margin-top: 68px !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
