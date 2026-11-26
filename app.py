@@ -188,6 +188,20 @@ st.markdown("""
         }
     }
 
+    /* Menú secundario: contraste azul marino y selección naranja. */
+    div.st-key-dridma_bottom_nav .st-key-dridma_sub_nav_row {
+        background: #09244D; padding: 4px 6px;
+    }
+    div.st-key-dridma_bottom_nav .st-key-dridma_sub_nav_row button {
+        background: #09244D; color: #FFFFFF; border: 0; border-radius: 6px;
+    }
+    div.st-key-dridma_bottom_nav .st-key-dridma_sub_nav_row button[kind="primary"] {
+        background: #FF6500; color: #FFFFFF; border: 0;
+    }
+    div.st-key-dridma_bottom_nav .st-key-dridma_sub_nav_row button:hover {
+        color: #FFFFFF; background: #FF6500;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -915,12 +929,13 @@ st.markdown('<div class="dridma-footer">DRIDMA RIVAS · Estadísticas del equipo
 # Navegación fija: botones nativos de Streamlit, sin dependencias adicionales.
 with st.container(key="dridma_bottom_nav"):
     if secondary_options:
-        columns = st.columns(len(secondary_options), gap="small")
-        state_key = "dridma_team_tab_saved" if main == "Equipo" else "dridma_player_tab_saved"
-        for col, option in zip(columns, secondary_options):
-            col.button(option, key=f"nav_sub_{main}_{option}",
-                       type="primary" if option == secondary_active else "secondary",
-                       use_container_width=True, on_click=set_navigation, args=(state_key, option))
+        with st.container(key="dridma_sub_nav_row"):
+            columns = st.columns(len(secondary_options), gap="small")
+            state_key = "dridma_team_tab_saved" if main == "Equipo" else "dridma_player_tab_saved"
+            for col, option in zip(columns, secondary_options):
+                col.button(option, key=f"nav_sub_{main}_{option}",
+                           type="primary" if option == secondary_active else "secondary",
+                           use_container_width=True, on_click=set_navigation, args=(state_key, option))
     with st.container(key="dridma_main_nav_row"):
         columns = st.columns(3, gap="small")
         for col, (option, symbol) in zip(columns, [("Equipo", ":material/groups:"), ("Jugadores", ":material/person:"), ("Abreviaturas", ":material/menu_book:")]):
