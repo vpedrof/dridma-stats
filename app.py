@@ -162,12 +162,12 @@ st.markdown("""
     div.st-key-dridma_top_nav button { width: 100%; border: 0; border-radius: 0; color: #FFFFFF; background: #09244D; padding: 6px 0; min-height: 42px; }
     div.st-key-dridma_top_nav button[kind="primary"] { color: #FF6500; background: #09244D; border-top: 3px solid #FF6500; }
     div.st-key-dridma_top_nav button p { font-size: clamp(10px, 2.8vw, 14px); white-space: nowrap; }
-    div.st-key-dridma_top_nav button [data-testid="stMarkdownContainer"] { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    div.st-key-dridma_top_nav button [data-testid="stMarkdownContainer"] { display: flex; flex-direction: column; align-items: center; gap: 0; }
     div.st-key-dridma_top_nav button:hover { color: #FF6500; }
 
     /* Menú secundario: fondo blanco y selección naranja. */
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row {
-        background: #FFFFFF; padding: 4px 6px;
+        background: #FFFFFF; padding: 2px 6px;
     }
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button {
         background: #FFFFFF; color: #09244D; border: 0; border-radius: 6px;
@@ -189,15 +189,18 @@ st.markdown("""
         background: #09244D; box-shadow: 0 3px 10px #09244D18;
     }
     div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button {
-        min-height: 58px; padding: 5px 0;
+        min-height: 48px; padding: 2px 0;
     }
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button {
-        min-height: 42px;
+        min-height: 34px; padding: 2px 0;
     }
-    .dridma-topline { margin-top: 120px !important; }
+    .dridma-topline { margin-top: 98px !important; }
     .block-container:has(.st-key-dridma_top_nav):not(:has(.st-key-dridma_sub_nav_row)) .dridma-topline {
-        margin-top: 68px !important;
+        margin-top: 58px !important;
     }
+
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button p { margin: 0; line-height: 1.15; }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button [data-testid="stIconMaterial"] { font-size: 19px !important; line-height: 1; }
 
 </style>
 """, unsafe_allow_html=True)
