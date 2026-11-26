@@ -226,6 +226,17 @@ st.markdown("""
 
     /* Acercar el logotipo a la navegación sin cambiar su tamaño. */
     div.st-key-dridma_logo { margin-top: -28px !important; }
+
+    /* Selector de torneos por año, independiente de la navegación. */
+    div[class*="st-key-dridma_"][class*="_selector"] { border: 1px solid #DDE4EE; border-radius: 12px; padding: 10px; }
+    div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 8px !important; }
+    div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stColumn"] { min-width: 0 !important; }
+    div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stVerticalBlock"] { gap: 5px !important; }
+    div[class*="st-key-dridma_"][class*="_selector"] button { min-height: 36px; padding: 4px; background: #EFF2F6; color: #09244D; border: 1px solid #DDE4EE; }
+    div[class*="st-key-dridma_"][class*="_selector"] button[kind="primary"] { background: #09244D; color: white; border-color: #09244D; }
+    div[class*="st-key-dridma_"][class*="_selector"] button[kind="primary"] [data-testid="stIconMaterial"] { color: #FF6500; }
+    div[class*="st-key-dridma_"][class*="_selector"] button p { font-size: clamp(11px, 3.3vw, 15px); }
+    .dridma-tournament-year { text-align: center; font-weight: 700; color: #52617A; font-size: .85rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -661,40 +672,43 @@ def offense_by_pitcher(turns_df: pd.DataFrame, player: str, name_map: dict[str, 
 
 # ETAPA 2: navegación y fichas individuales por categoría.
 def tournament_filter(key: str, available: list[str]) -> list[str]:
-    """Filtro independiente; botones y casillas coherentes entre reruns de Streamlit."""
+    """Selector múltiple por año, con estado independiente por sección."""
     available = list(available)
     state_key = f"{key}_selected"
     if state_key not in st.session_state:
         st.session_state[state_key] = available.copy()
     st.session_state[state_key] = [t for t in st.session_state[state_key] if t in available]
 
-    def choose_all():
-        st.session_state[state_key] = available.copy()
-        for t in available:
-            st.session_state[f"{key}_check_{t}"] = True
-
-    def choose_none():
-        st.session_state[state_key] = []
-        for t in available:
-            st.session_state[f"{key}_check_{t}"] = False
-
-    def change_check(t):
+    def toggle(t):
         current = set(st.session_state[state_key])
-        if st.session_state[f"{key}_check_{t}"]:
-            current.add(t)
+        if t in current:
+            current.remove(t)
         else:
-            current.discard(t)
+            current.add(t)
         st.session_state[state_key] = [item for item in available if item in current]
 
-    with st.expander(f"Seleccionar torneos · {len(st.session_state[state_key])} de {len(available)}", expanded=False):
-        a, b = st.columns(2)
-        a.button("Todos", key=f"{key}_all", use_container_width=True, on_click=choose_all)
-        b.button("Ninguno", key=f"{key}_none", use_container_width=True, on_click=choose_none)
-        for t in available:
-            widget_key = f"{key}_check_{t}"
-            if widget_key not in st.session_state:
-                st.session_state[widget_key] = t in st.session_state[state_key]
-            st.checkbox(str(t), key=widget_key, on_change=change_check, args=(t,))
+    def toggle_all():
+        st.session_state[state_key] = [] if len(st.session_state[state_key]) == len(available) else available.copy()
+
+    groups = {}
+    for t in available:
+        match = re.search(r"\b(?:19|20)\d{2}\b", str(t))
+        groups.setdefault(match.group(0) if match else "Otros", []).append(t)
+    with st.container(key=f"{key}_selector"):
+        title, action = st.columns([3, 1])
+        title.markdown(f"**Torneos · {len(st.session_state[state_key])} de {len(available)}**")
+        action.button("Ninguno" if len(st.session_state[state_key]) == len(available) else "Todos", key=f"{key}_toggle_all", on_click=toggle_all, use_container_width=True)
+        years = sorted(groups)
+        for start in range(0, len(years), 2):
+            cols = st.columns(2)
+            for col, year in zip(cols, years[start:start+2]):
+                with col:
+                    st.markdown(f'<div class="dridma-tournament-year">{escape(year)}</div>', unsafe_allow_html=True)
+                    for t in sorted(groups[year], key=lambda t: (not short_tournament_name(t).startswith("SC"), str(t))):
+                        code = short_tournament_name(t)
+                        label = "Super Cup" if re.fullmatch(r"SC\d{2}", code) else "Masters Cup" if re.fullmatch(r"MC\d{2}", code) else str(t)
+                        active = t in st.session_state[state_key]
+                        st.button(label, icon=":material/check_box:" if active else ":material/check_box_outline_blank:", type="primary" if active else "secondary", key=f"{key}_toggle_{t}", on_click=toggle, args=(t,), use_container_width=True)
     return list(st.session_state[state_key])
 
 
