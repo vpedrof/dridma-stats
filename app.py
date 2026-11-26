@@ -165,6 +165,15 @@ st.markdown("""
     div.st-key-dridma_bottom_nav button p { font-size: clamp(10px, 2.8vw, 14px); white-space: nowrap; }
     div.st-key-dridma_bottom_nav button [data-testid="stMarkdownContainer"] { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     div.st-key-dridma_bottom_nav button:hover { color: #FF6500; }
+    /* Evitar que los controles flotantes de Community Cloud tapen la navegación. */
+    [data-testid="stAppViewerBadge"], [data-testid="stAppViewerBadgeContainer"],
+    [data-testid="stViewerBadge"], .viewerBadge_container__1QSob,
+    .viewerBadge_link__1S137, [class*="viewerBadge_container"],
+    [class*="viewerBadge_link"], [class*="viewerBadge_profile"],
+    [data-testid="stStatusWidget"] {
+        display: none !important;
+    }
+    div.st-key-dridma_bottom_nav { z-index: 2147483647 !important; isolation: isolate; }
 </style>
 """, unsafe_allow_html=True)
 
