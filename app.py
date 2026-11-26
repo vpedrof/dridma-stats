@@ -174,6 +174,20 @@ st.markdown("""
         display: none !important;
     }
     div.st-key-dridma_bottom_nav { z-index: 2147483647 !important; isolation: isolate; }
+    /* En móvil, reservar el extremo derecho para los controles de Cloud. */
+    @media (max-width: 640px) {
+        div.st-key-dridma_bottom_nav .st-key-dridma_main_nav_row {
+            width: 65% !important;
+            max-width: 65% !important;
+            margin-left: 0 !important;
+            margin-right: auto !important;
+        }
+        div.st-key-dridma_bottom_nav .st-key-dridma_main_nav_row button p {
+            font-size: clamp(9px, 2.5vw, 11px) !important;
+            white-space: nowrap !important;
+        }
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -907,8 +921,9 @@ with st.container(key="dridma_bottom_nav"):
             col.button(option, key=f"nav_sub_{main}_{option}",
                        type="primary" if option == secondary_active else "secondary",
                        use_container_width=True, on_click=set_navigation, args=(state_key, option))
-    columns = st.columns(3, gap="small")
-    for col, (option, symbol) in zip(columns, [("Equipo", ":material/groups:"), ("Jugadores", ":material/person:"), ("Abreviaturas", ":material/menu_book:")]):
-        col.button(f"{symbol}\n\n{option}", key=f"nav_main_{option}",
-                   type="primary" if main == option else "secondary",
-                   use_container_width=True, on_click=set_navigation, args=("dridma_main_menu", option))
+    with st.container(key="dridma_main_nav_row"):
+        columns = st.columns(3, gap="small")
+        for col, (option, symbol) in zip(columns, [("Equipo", ":material/groups:"), ("Jugadores", ":material/person:"), ("Abreviaturas", ":material/menu_book:")]):
+            col.button(f"{symbol}\n\n{option}", key=f"nav_main_{option}",
+                       type="primary" if main == option else "secondary",
+                       use_container_width=True, on_click=set_navigation, args=("dridma_main_menu", option))
