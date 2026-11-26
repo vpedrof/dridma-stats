@@ -189,18 +189,18 @@ st.markdown("""
         background: #09244D; box-shadow: 0 3px 10px #09244D18;
     }
     div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button {
-        min-height: 48px; padding: 2px 0;
+        min-height: 34px; padding: 0; gap: 0;
     }
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button {
         min-height: 34px; padding: 2px 0;
     }
-    .dridma-topline { margin-top: 98px !important; }
+    .dridma-topline { margin-top: 84px !important; }
     .block-container:has(.st-key-dridma_top_nav):not(:has(.st-key-dridma_sub_nav_row)) .dridma-topline {
-        margin-top: 58px !important;
+        margin-top: 44px !important;
     }
 
-    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button p { margin: 0; line-height: 1.15; }
-    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button [data-testid="stIconMaterial"] { font-size: 19px !important; line-height: 1; }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button p { margin: 0; line-height: 1; }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button [data-testid="stIconMaterial"] { font-size: 15px !important; line-height: 1; }
 
 </style>
 """, unsafe_allow_html=True)
