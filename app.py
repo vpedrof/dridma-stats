@@ -236,7 +236,7 @@ st.markdown("""
     div[class*="st-key-dridma_"][class*="_selector"] button[kind="primary"] { background: #09244D; color: white; border-color: #09244D; }
     div[class*="st-key-dridma_"][class*="_selector"] button[kind="primary"] [data-testid="stIconMaterial"] { color: #FF6500; }
     div[class*="st-key-dridma_"][class*="_selector"] button p { font-size: clamp(11px, 3.3vw, 15px); }
-    .dridma-tournament-year { display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 700; color: #09244D; font-size: .85rem; line-height: 18px; min-height: 18px; padding: 0 0 4px; box-sizing: border-box; }
+    .dridma-tournament-year { display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 700; color: #09244D; font-size: .85rem; line-height: 18px; min-height: 18px; padding: 0 0 0; box-sizing: border-box; }
     div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stElementContainer"]:has(.dridma-tournament-year),
     div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stMarkdown"]:has(.dridma-tournament-year) {
         height: auto !important; min-height: 24px !important; flex-shrink: 0 !important; overflow: visible !important; margin: 0 !important;
