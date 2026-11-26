@@ -199,8 +199,19 @@ st.markdown("""
         margin-top: 44px !important;
     }
 
-    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button p { margin: 0; line-height: 1; }
-    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button [data-testid="stIconMaterial"] { font-size: 15px !important; line-height: 1; }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button {
+        height: 52px; min-height: 52px; padding: 0 !important;
+        display: flex; align-items: center; justify-content: center;
+        box-sizing: border-box; border-top: 3px solid transparent;
+    }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button[kind="primary"] { border-top-color: #FF6500; }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button [data-testid="stMarkdownContainer"] {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px !important;
+    }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button p { margin: 0 !important; line-height: 1.05; font-size: clamp(11px, 3.2vw, 15px); }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button [data-testid="stIconMaterial"] { font-size: 19px !important; line-height: 1; }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row [data-testid="stVerticalBlock"] { justify-content: center; }
+
 
 </style>
 """, unsafe_allow_html=True)
