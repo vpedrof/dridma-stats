@@ -808,7 +808,7 @@ elif main == "Jugadores":
                     r = o.iloc[0]
                     stat_cards([("AVG", f'{r["AVG"]:.3f}' if pd.notna(r["AVG"]) else "—"),
                                 ("OPS", str(int(r["OPS"]))), ("HR", str(int(r["HR"])))])
-                    render_table(o, ["Jugador", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"])
+                    render_table(o, ["AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"])
                     detail = player_tournament_table(player_offense, player, offense_fields, "offense")
                     if not detail.empty:
                         with st.expander("Ofensiva por torneo"):
@@ -868,7 +868,7 @@ elif main == "Jugadores":
                 elif tab == "Defensiva":
                     r = d.iloc[0]
                     stat_cards([("PO", str(int(r["PO"]))), ("A", str(int(r["A"]))), ("E", str(int(r["E"])))])
-                    render_table(d, ["Jugador", "PO", "A", "E", "DP", "PB"])
+                    render_table(d, ["PO", "A", "E", "DP", "PB"])
                     detail = player_tournament_table(player_defense, player, defense_fields, "defense")
                     if not detail.empty:
                         with st.expander("Defensiva por torneo"):
@@ -881,7 +881,7 @@ elif main == "Jugadores":
                     stat_cards([("IP", str(r["IP"])),
                                 ("EFE", f'{r["EFE"]:.2f}' if pd.notna(r["EFE"]) else "—"),
                                 ("K", str(int(r["K"])))])
-                    render_table(p, ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
+                    render_table(p, ["IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
                     detail = player_tournament_table(player_pitching, player, pitching_fields + ["OUTS"], "pitching")
                     if not detail.empty:
                         with st.expander("Picheo por torneo"):
