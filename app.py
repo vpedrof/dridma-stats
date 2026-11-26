@@ -155,50 +155,27 @@ st.markdown("""
         font-weight: 750; border-top: 2px solid #AEBBD0;
     }
 
-    .block-container { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important; }
-    div.st-key-dridma_bottom_nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 999; background: white; padding: 0 max(8px, calc((100vw - 1100px)/2)); padding-bottom: env(safe-area-inset-bottom, 0px); border-top: 1px solid #DDE4EE; box-shadow: 0 -3px 12px #09244D12; }
-    div.st-key-dridma_bottom_nav [data-testid="stVerticalBlock"] { gap: 0 !important; }
-    div.st-key-dridma_bottom_nav [data-testid="stHorizontalBlock"] { gap: 0 !important; flex-wrap: nowrap !important; }
-    div.st-key-dridma_bottom_nav [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; width: 0 !important; }
-    div.st-key-dridma_bottom_nav button { width: 100%; border: 0; border-radius: 0; color: #09244D; background: white; padding: 6px 0; min-height: 42px; }
-    div.st-key-dridma_bottom_nav button[kind="primary"] { color: #FF6500; background: white; border-top: 3px solid #FF6500; }
-    div.st-key-dridma_bottom_nav button p { font-size: clamp(10px, 2.8vw, 14px); white-space: nowrap; }
-    div.st-key-dridma_bottom_nav button [data-testid="stMarkdownContainer"] { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    div.st-key-dridma_bottom_nav button:hover { color: #FF6500; }
-    /* Evitar que los controles flotantes de Community Cloud tapen la navegación. */
-    [data-testid="stAppViewerBadge"], [data-testid="stAppViewerBadgeContainer"],
-    [data-testid="stViewerBadge"], .viewerBadge_container__1QSob,
-    .viewerBadge_link__1S137, [class*="viewerBadge_container"],
-    [class*="viewerBadge_link"], [class*="viewerBadge_profile"],
-    [data-testid="stStatusWidget"] {
-        display: none !important;
-    }
-    div.st-key-dridma_bottom_nav { z-index: 2147483647 !important; isolation: isolate; }
-    /* En móvil, reservar el extremo derecho para los controles de Cloud. */
-    @media (max-width: 640px) {
-        div.st-key-dridma_bottom_nav .st-key-dridma_main_nav_row {
-            width: 65% !important;
-            max-width: 65% !important;
-            margin-left: 0 !important;
-            margin-right: auto !important;
-        }
-        div.st-key-dridma_bottom_nav .st-key-dridma_main_nav_row button p {
-            font-size: clamp(9px, 2.5vw, 11px) !important;
-            white-space: nowrap !important;
-        }
-    }
+    div.st-key-dridma_top_nav { width: 100%; background: white; border-bottom: 1px solid #DDE4EE; }
+    div.st-key-dridma_top_nav [data-testid="stVerticalBlock"] { gap: 0 !important; }
+    div.st-key-dridma_top_nav [data-testid="stHorizontalBlock"] { gap: 0 !important; flex-wrap: nowrap !important; }
+    div.st-key-dridma_top_nav [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; width: 0 !important; }
+    div.st-key-dridma_top_nav button { width: 100%; border: 0; border-radius: 0; color: #09244D; background: white; padding: 6px 0; min-height: 42px; }
+    div.st-key-dridma_top_nav button[kind="primary"] { color: #FF6500; background: white; border-top: 3px solid #FF6500; }
+    div.st-key-dridma_top_nav button p { font-size: clamp(10px, 2.8vw, 14px); white-space: nowrap; }
+    div.st-key-dridma_top_nav button [data-testid="stMarkdownContainer"] { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    div.st-key-dridma_top_nav button:hover { color: #FF6500; }
 
     /* Menú secundario: contraste azul marino y selección naranja. */
-    div.st-key-dridma_bottom_nav .st-key-dridma_sub_nav_row {
+    div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row {
         background: #09244D; padding: 4px 6px;
     }
-    div.st-key-dridma_bottom_nav .st-key-dridma_sub_nav_row button {
+    div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button {
         background: #09244D; color: #FFFFFF; border: 0; border-radius: 6px;
     }
-    div.st-key-dridma_bottom_nav .st-key-dridma_sub_nav_row button[kind="primary"] {
+    div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button[kind="primary"] {
         background: #FF6500; color: #FFFFFF; border: 0;
     }
-    div.st-key-dridma_bottom_nav .st-key-dridma_sub_nav_row button:hover {
+    div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button:hover {
         color: #FFFFFF; background: #FF6500;
     }
 
@@ -394,13 +371,7 @@ def render_games(df: pd.DataFrame) -> None:
         </div>''', unsafe_allow_html=True)
 
 
-st.markdown('<div class="dridma-topline"></div>', unsafe_allow_html=True)
-if LOGO.is_file():
-    left, center, right = st.columns([1, 3, 1], vertical_alignment="center")
-    with center:
-        st.image(str(LOGO), use_container_width=True)
-else:
-    st.markdown('<div class="dridma-title">DRIDMA RIVAS</div>', unsafe_allow_html=True)
+
 
 
 try:
@@ -721,6 +692,24 @@ main = st.session_state.get("dridma_main_menu", "Equipo")
 secondary_options = ["Ofensiva", "Defensiva", "Picheo", "Scores"] if main == "Equipo" else []
 secondary_active = st.session_state.get("dridma_team_tab_saved", "Ofensiva") if main == "Equipo" else None
 
+# Navegación superior: menú principal seguido del secundario.
+with st.container(key="dridma_top_nav"):
+    with st.container(key="dridma_main_nav_row"):
+        columns = st.columns(3, gap="small")
+        for col, (option, symbol) in zip(columns, [("Equipo", ":material/groups:"), ("Jugadores", ":material/person:"), ("Abreviaturas", ":material/menu_book:")]):
+            col.button(f"{symbol}\n\n{option}", key=f"nav_main_{option}",
+                       type="primary" if main == option else "secondary",
+                       use_container_width=True, on_click=set_navigation, args=("dridma_main_menu", option))
+    secondary_slot = st.empty()
+
+st.markdown('<div class="dridma-topline"></div>', unsafe_allow_html=True)
+if LOGO.is_file():
+    left, center, right = st.columns([1, 3, 1], vertical_alignment="center")
+    with center:
+        st.image(str(LOGO), use_container_width=True)
+else:
+    st.markdown('<div class="dridma-title">DRIDMA RIVAS</div>', unsafe_allow_html=True)
+
 if main == "Abreviaturas":
     st.subheader("Abreviaturas")
     st.caption("Consulta las abreviaturas utilizadas en las tablas.")
@@ -926,8 +915,8 @@ elif main == "Jugadores":
 st.markdown('<div class="dridma-footer">DRIDMA RIVAS · Estadísticas del equipo</div>', unsafe_allow_html=True)
 
 
-# Navegación fija: botones nativos de Streamlit, sin dependencias adicionales.
-with st.container(key="dridma_bottom_nav"):
+
+with secondary_slot.container():
     if secondary_options:
         with st.container(key="dridma_sub_nav_row"):
             columns = st.columns(len(secondary_options), gap="small")
@@ -936,9 +925,3 @@ with st.container(key="dridma_bottom_nav"):
                 col.button(option, key=f"nav_sub_{main}_{option}",
                            type="primary" if option == secondary_active else "secondary",
                            use_container_width=True, on_click=set_navigation, args=(state_key, option))
-    with st.container(key="dridma_main_nav_row"):
-        columns = st.columns(3, gap="small")
-        for col, (option, symbol) in zip(columns, [("Equipo", ":material/groups:"), ("Jugadores", ":material/person:"), ("Abreviaturas", ":material/menu_book:")]):
-            col.button(f"{symbol}\n\n{option}", key=f"nav_main_{option}",
-                       type="primary" if main == option else "secondary",
-                       use_container_width=True, on_click=set_navigation, args=("dridma_main_menu", option))
