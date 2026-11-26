@@ -410,12 +410,12 @@ PLAYER_SHORT_NAMES = {
 
 def stat_cards(stats: list[tuple[str, str]]) -> None:
     blocks = "".join(
-        '<div class="dridma-stat"><div class="dridma-stat-label">'
-        + escape(label) + '</div><div class="dridma-stat-value">'
+        '<div class="dridma-kpi"><div class="dridma-kpi-label">'
+        + escape(label) + '</div><div class="dridma-kpi-value">'
         + escape(str(value)) + '</div></div>'
         for label, value in stats
     )
-    st.markdown(f'<div class="dridma-stat-grid">{blocks}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="dridma-kpis">{blocks}</div>', unsafe_allow_html=True)
 
 
 def short_tournament_name(name: str) -> str:
