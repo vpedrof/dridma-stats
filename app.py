@@ -236,7 +236,14 @@ st.markdown("""
     div[class*="st-key-dridma_"][class*="_selector"] button[kind="primary"] { background: #09244D; color: white; border-color: #09244D; }
     div[class*="st-key-dridma_"][class*="_selector"] button[kind="primary"] [data-testid="stIconMaterial"] { color: #FF6500; }
     div[class*="st-key-dridma_"][class*="_selector"] button p { font-size: clamp(11px, 3.3vw, 15px); }
-    .dridma-tournament-year { text-align: center; font-weight: 700; color: #52617A; font-size: .85rem; }
+    .dridma-tournament-year { display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 700; color: #09244D; font-size: .85rem; line-height: 20px; min-height: 24px; padding: 0 0 4px; box-sizing: border-box; }
+    div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stElementContainer"]:has(.dridma-tournament-year),
+    div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stMarkdown"]:has(.dridma-tournament-year) {
+        height: auto !important; min-height: 24px !important; flex-shrink: 0 !important; overflow: visible !important; margin: 0 !important;
+    }
+    div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stHorizontalBlock"] { align-items: flex-start; }
+    div[class*="st-key-dridma_"][class*="_selector"] [data-testid="stVerticalBlock"] { row-gap: 4px !important; }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -700,10 +707,13 @@ def tournament_filter(key: str, available: list[str]) -> list[str]:
         action.button("Ninguno" if len(st.session_state[state_key]) == len(available) else "Todos", key=f"{key}_toggle_all", on_click=toggle_all, use_container_width=True)
         years = sorted(groups)
         for start in range(0, len(years), 2):
-            cols = st.columns(2)
-            for col, year in zip(cols, years[start:start+2]):
+            year_batch = years[start:start+2]
+            headings = st.columns(2, gap="small")
+            for col, year in zip(headings, year_batch):
+                col.markdown(f'<div class="dridma-tournament-year">{escape(year)}</div>', unsafe_allow_html=True)
+            cols = st.columns(2, gap="small")
+            for col, year in zip(cols, year_batch):
                 with col:
-                    st.markdown(f'<div class="dridma-tournament-year">{escape(year)}</div>', unsafe_allow_html=True)
                     for t in sorted(groups[year], key=lambda t: (not short_tournament_name(t).startswith("SC"), str(t))):
                         code = short_tournament_name(t)
                         label = "Super Cup" if re.fullmatch(r"SC\d{2}", code) else "Masters Cup" if re.fullmatch(r"MC\d{2}", code) else str(t)
