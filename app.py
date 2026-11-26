@@ -154,6 +154,17 @@ st.markdown("""
     .dridma-count-table .dridma-count-total td {
         font-weight: 750; border-top: 2px solid #AEBBD0;
     }
+
+    .block-container { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important; }
+    div.st-key-dridma_bottom_nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 999; background: white; padding: 0 max(8px, calc((100vw - 1100px)/2)); padding-bottom: env(safe-area-inset-bottom, 0px); border-top: 1px solid #DDE4EE; box-shadow: 0 -3px 12px #09244D12; }
+    div.st-key-dridma_bottom_nav [data-testid="stVerticalBlock"] { gap: 0 !important; }
+    div.st-key-dridma_bottom_nav [data-testid="stHorizontalBlock"] { gap: 0 !important; flex-wrap: nowrap !important; }
+    div.st-key-dridma_bottom_nav [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; width: 0 !important; }
+    div.st-key-dridma_bottom_nav button { width: 100%; border: 0; border-radius: 0; color: #09244D; background: white; padding: 6px 0; min-height: 42px; }
+    div.st-key-dridma_bottom_nav button[kind="primary"] { color: #FF6500; background: white; border-top: 3px solid #FF6500; }
+    div.st-key-dridma_bottom_nav button p { font-size: clamp(10px, 2.8vw, 14px); white-space: nowrap; }
+    div.st-key-dridma_bottom_nav button [data-testid="stMarkdownContainer"] { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    div.st-key-dridma_bottom_nav button:hover { color: #FF6500; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -353,7 +364,7 @@ if LOGO.is_file():
         st.image(str(LOGO), use_container_width=True)
 else:
     st.markdown('<div class="dridma-title">DRIDMA RIVAS</div>', unsafe_allow_html=True)
-st.markdown('<div class="dridma-subtitle">ESTADÍSTICAS DEL EQUIPO</div>', unsafe_allow_html=True)
+
 
 try:
     offense = read_data("db_Ofensiva")
@@ -666,17 +677,15 @@ for frame in (offense, defense, pitching):
 
 tournaments = sorted(results["TORNEO"].dropna().unique().tolist())
 all_players = sorted(set(offense["Jugador"]) | set(defense["Jugador"]) | set(pitching["Jugador"]))
-def save_team_tab():
-    st.session_state["dridma_team_tab_saved"] = st.session_state["dridma_team_tab"]
+def set_navigation(key, value):
+    st.session_state[key] = value
 
-def save_player_tab():
-    st.session_state["dridma_player_tab_saved"] = st.session_state["dridma_player_tab"]
+main = st.session_state.get("dridma_main_menu", "Equipo")
+secondary_options = ["Ofensiva", "Defensiva", "Picheo", "Scores"] if main == "Equipo" else []
+secondary_active = st.session_state.get("dridma_team_tab_saved", "Ofensiva") if main == "Equipo" else None
 
-main = st.segmented_control("Sección", ["Equipo", "Jugadores"], default="Equipo",
-                            key="dridma_main_menu", label_visibility="collapsed")
-
-# Glosario único y global.
-with st.expander("❔ ¿Qué significan las abreviaturas?", expanded=False):
+if main == "Abreviaturas":
+    st.subheader("Abreviaturas")
     st.caption("Consulta las abreviaturas utilizadas en las tablas.")
     glossary_groups = {
         "Ofensiva": ["AB", "H", "2B", "3B", "HR", "RBI", "R", "BB", "SO", "K", "AVG", "OBP", "SLG", "OPS", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"],
@@ -711,17 +720,27 @@ if main == "Equipo":
                 (r["Equipo 2"].eq("DRI") & (r["Carreras2"] > r["Carreras"]))).sum()
         losses = ((r["Equipo 1"].eq("DRI") & (r["Carreras"] < r["Carreras2"])) |
                   (r["Equipo 2"].eq("DRI") & (r["Carreras2"] < r["Carreras"]))).sum()
+        tab = secondary_active
+        if tab == "Ofensiva":
+            totals = o[offense_fields].sum()
+            ab = totals["AB"]
+            denom = ab + totals["BB"] + totals["HBP"] + totals["SF"]
+            avg = f'{totals["H"] / ab:.3f}' if ab else "—"
+            ops = round(1000 * ((totals["H"] + totals["BB"] + totals["HBP"]) / denom + totals["TB"] / ab)) if ab and denom else "—"
+            kpis = [("AVG", avg), ("HR", int(totals["HR"])), ("OPS", ops)]
+        elif tab == "Defensiva":
+            kpis = [(col, int(d[col].sum())) for col in ["A", "E", "DP"]]
+        elif tab == "Picheo":
+            outs = int(p["OUTS"].sum())
+            kpis = [("IP", f"{outs // 3}.{outs % 3}"), ("K", int(p["K"].sum())), ("EFE", f'{21 * p["ER"].sum() / outs:.2f}' if outs else "—")]
+        else:
+            kpis = [("Partidos", len(r)), ("Victorias", int(wins)), ("Derrotas", int(losses))]
         items = "".join(
             f'<div class="dridma-kpi"><div class="dridma-kpi-label">{escape(label)}</div>'
-            f'<div class="dridma-kpi-value">{value}</div></div>'
-            for label, value in [("Partidos", len(r)), ("Victorias", int(wins)), ("Derrotas", int(losses))]
+            f'<div class="dridma-kpi-value">{escape(str(value))}</div></div>'
+            for label, value in kpis
         )
         st.markdown(f'<div class="dridma-kpis">{items}</div>', unsafe_allow_html=True)
-        if "dridma_team_tab" not in st.session_state:
-            st.session_state["dridma_team_tab"] = st.session_state.get("dridma_team_tab_saved", "Ofensiva")
-        tab = st.segmented_control("Estadísticas del equipo",
-                 ["Ofensiva", "Defensiva", "Picheo", "Scores"], default="Ofensiva",
-                 key="dridma_team_tab", label_visibility="collapsed", on_change=save_team_tab)
         if tab == "Ofensiva":
             render_table(offense_table.sort_values(["AVG", "H"], ascending=False),
                 ["Jugador", "AVG", "OPS", "AB", "H", "R", "RBI", "BB", "K", "2B", "3B", "HR", "TB", "HBP", "SH", "SF", "IBB", "SB", "CS"], {"AVG": ".3f"})
@@ -732,7 +751,7 @@ if main == "Equipo":
                 ["Jugador", "IP", "EFE", "K", "H", "BB", "R", "ER", "Picheos", "Strikes"], {"EFE": ".2f"})
         else:
             render_games(r.sort_values("Fecha"))
-else:
+elif main == "Jugadores":
     def remember_player():
         st.session_state["dridma_player_saved"] = st.session_state["dridma_player"]
 
@@ -772,10 +791,11 @@ else:
             if not available_tabs:
                 st.info("No hay estadísticas disponibles para este jugador en los torneos seleccionados.")
             else:
-                previous_tab = st.session_state.get("dridma_player_tab", st.session_state.get("dridma_player_tab_saved"))
+                previous_tab = st.session_state.get("dridma_player_tab_saved", "Ofensiva")
                 if previous_tab not in available_tabs:
                     previous_tab = available_tabs[0]
-                st.session_state["dridma_player_tab"] = previous_tab
+                secondary_options = available_tabs
+                secondary_active = previous_tab
                 st.markdown(
                     '<div class="dridma-profile">'
                     '<div class="dridma-profile-label">DRIDMA RIVAS · JUGADORES</div>'
@@ -783,8 +803,7 @@ else:
                     f'<div class="dridma-profile-sub">{len(selected)} torneo(s) seleccionado(s)</div>'
                     '</div>', unsafe_allow_html=True
                 )
-                tab = st.segmented_control("Estadísticas del jugador", available_tabs,
-                                           key="dridma_player_tab", label_visibility="collapsed", on_change=save_player_tab)
+                tab = secondary_active
                 if tab == "Ofensiva":
                     r = o.iloc[0]
                     stat_cards([("AVG", f'{r["AVG"]:.3f}' if pd.notna(r["AVG"]) else "—"),
@@ -868,3 +887,19 @@ else:
                         with st.expander("Picheo por torneo"):
                             render_table(detail, list(detail.columns), {"EFE": ".2f"})
 st.markdown('<div class="dridma-footer">DRIDMA RIVAS · Estadísticas del equipo</div>', unsafe_allow_html=True)
+
+
+# Navegación fija: botones nativos de Streamlit, sin dependencias adicionales.
+with st.container(key="dridma_bottom_nav"):
+    if secondary_options:
+        columns = st.columns(len(secondary_options), gap="small")
+        state_key = "dridma_team_tab_saved" if main == "Equipo" else "dridma_player_tab_saved"
+        for col, option in zip(columns, secondary_options):
+            col.button(option, key=f"nav_sub_{main}_{option}",
+                       type="primary" if option == secondary_active else "secondary",
+                       use_container_width=True, on_click=set_navigation, args=(state_key, option))
+    columns = st.columns(3, gap="small")
+    for col, (option, symbol) in zip(columns, [("Equipo", ":material/groups:"), ("Jugadores", ":material/person:"), ("Abreviaturas", ":material/menu_book:")]):
+        col.button(f"{symbol}\n\n{option}", key=f"nav_main_{option}",
+                   type="primary" if main == option else "secondary",
+                   use_container_width=True, on_click=set_navigation, args=("dridma_main_menu", option))
