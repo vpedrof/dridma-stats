@@ -97,17 +97,18 @@ st.markdown("""
         }
     }
 
-    .dridma-game { border: 1px solid #DDE4EE; border-radius: 12px; padding: .8rem; margin-bottom: .7rem; background: #FFFFFF; }
-    .dridma-game-top { display:flex; justify-content:space-between; gap: .5rem; font-size:.76rem; color:#63718A; margin-bottom:.6rem; }
-    .dridma-game-score { display:grid; grid-template-columns: 1fr auto 1fr; gap:.5rem; align-items:center; }
-    .dridma-team { text-align:center; min-width:0; font-size:.88rem; font-weight:700; }
-    .dridma-team-name { display:block; white-space:nowrap; font-size:clamp(.60rem, 2.5vw, .88rem); letter-spacing:-.025em; }
-    .dridma-team-code { display:block; white-space:nowrap; font-size:.82rem; }
-    .dridma-score { display:block; font-size:1.7rem; font-weight:850; color:#09244D; }
+    .dridma-game { display:flex; overflow:hidden; border:1px solid #DDE4EE; border-radius:10px; margin-bottom:.2rem; background:#FFFFFF; }
+    .dridma-game-result { flex:0 0 38px; display:flex; align-items:center; justify-content:center; font-size:1.15rem; background:#F2F5FA; }
+    .dridma-win { background:#E4F3E9; } .dridma-loss { background:#FCE9E9; }
+    .dridma-game-body { flex:1; min-width:0; padding:.25rem .35rem; }
+    .dridma-game-top { text-align:center; font-size:.70rem; color:#63718A; line-height:1.15; margin-bottom:.15rem; }
+    .dridma-game-score { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:.25rem; align-items:center; }
+    .dridma-team { text-align:center; min-width:0; font-weight:700; line-height:1.15; }
+    .dridma-team-name { display:block; overflow-wrap:anywhere; font-size:clamp(.65rem,2.7vw,.85rem); }
+    .dridma-team-code { display:block; font-size:.68rem; }
+    .dridma-score { display:block; font-size:1.45rem; line-height:1.1; font-weight:850; color:#09244D; }
     .dridma-score-home { color:#FF6500; }
     .dridma-vs { font-size:.75rem; color:#63718A; }
-    .dridma-game-result { text-align:center; margin-top:.55rem; font-size:.78rem; font-weight:800; }
-    .dridma-win { color:#177245; } .dridma-loss { color:#B63838; }
     .dridma-profile { background: #09244D; color: #FFFFFF; border-radius: 14px; padding: 1rem; margin: .6rem 0 .8rem; }
     .dridma-profile-label { color: #FF8B3D; font-size: .73rem; font-weight: 800; letter-spacing: .07em; }
     .dridma-profile-name { color: #FFFFFF; font-size: clamp(1.3rem, 5vw, 1.8rem); font-weight: 850; margin: .25rem 0; }
@@ -406,14 +407,14 @@ def render_games(df: pd.DataFrame) -> None:
         status_class = "dridma-win" if our_score > their_score else "dridma-loss" if our_score < their_score else ""
         date = pd.to_datetime(game["Fecha"], errors="coerce")
         date_text = date.strftime("%d/%m/%Y") if pd.notna(date) else "Fecha no disponible"
-        tournament = escape(str(game["TORNEO"]))
+        symbol = "✅" if our_score > their_score else "❌" if our_score < their_score else "➖"
         st.markdown(f'''<div class="dridma-game">
-          <div class="dridma-game-top"><span>{escape(date_text)}</span><span>{tournament}</span></div>
+          <div class="dridma-game-result {status_class}" role="img" aria-label="{status}">{symbol}</div><div class="dridma-game-body"><div class="dridma-game-top">{escape(date_text)}</div>
           <div class="dridma-game-score">
             <div class="dridma-team"><span class="dridma-team-name">Dridma Rivas</span><span class="dridma-team-code">(DRI)</span><span class="dridma-score dridma-score-home">{our_score}</span></div>
-            <div class="dridma-vs">VS</div>
+            <div class="dridma-vs">–</div>
             <div class="dridma-team"><span class="dridma-team-name">{escape(opponent)}</span><span class="dridma-team-code">({escape(opponent_code)})</span><span class="dridma-score">{their_score}</span></div>
-          </div><div class="dridma-game-result {status_class}">{status}</div>
+          </div></div>
         </div>''', unsafe_allow_html=True)
 
 
