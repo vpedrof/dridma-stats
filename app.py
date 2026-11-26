@@ -223,6 +223,8 @@ st.markdown("""
     }
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row { margin: 0 !important; }
 
+    /* Acercar el logotipo a la navegación sin cambiar su tamaño. */
+    div.st-key-dridma_logo { margin-top: -28px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -746,12 +748,13 @@ with st.container(key="dridma_top_nav"):
                        use_container_width=True, on_click=set_navigation, args=("dridma_main_menu", option))
     secondary_slot = st.empty()
 
-if LOGO.is_file():
-    left, center, right = st.columns([1, 3, 1], vertical_alignment="center")
-    with center:
-        st.image(str(LOGO), use_container_width=True)
-else:
-    st.markdown('<div class="dridma-title">DRIDMA RIVAS</div>', unsafe_allow_html=True)
+with st.container(key="dridma_logo"):
+    if LOGO.is_file():
+        left, center, right = st.columns([1, 3, 1], vertical_alignment="center")
+        with center:
+            st.image(str(LOGO), use_container_width=True)
+    else:
+        st.markdown('<div class="dridma-title">DRIDMA RIVAS</div>', unsafe_allow_html=True)
 
 if main == "Abreviaturas":
     st.subheader("Abreviaturas")
