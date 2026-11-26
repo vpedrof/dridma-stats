@@ -23,7 +23,6 @@ st.markdown("""
     [data-testid="stToolbar"] { color: #09244D; }
     h1, h2, h3 { color: #09244D !important; }
     .dridma-subtitle { text-align: center; color: #52617A; font-size: .9rem; margin: 0 0 .6rem; }
-    .dridma-topline { height: 5px; background: linear-gradient(90deg,#09244D 0%,#09244D 60%,#FF6500 60%,#FF6500 100%); border-radius: 4px; margin-bottom: 1.2rem; }
     .dridma-title { color: #09244D; text-align: center; font-weight: 900; font-size: clamp(1.35rem,4vw,2.15rem); letter-spacing: .02em; margin: .4rem 0 0; }
     .dridma-kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin: .7rem 0 .85rem; }
     .dridma-kpi { min-width: 0; background: #09244D; border-radius: 12px; padding: 10px 5px 9px; text-align: center; }
@@ -181,7 +180,8 @@ st.markdown("""
 
 
     /* Navegación fija bajo la cabecera nativa de Streamlit (altura 3.75rem). */
-    .block-container { padding-top: 3.75rem !important; }
+    .block-container { padding-top: calc(3.75rem + 96px) !important; }
+    .block-container:has(.st-key-dridma_top_nav):not(:has(.st-key-dridma_sub_nav_row)) { padding-top: calc(3.75rem + 56px) !important; }
     div.st-key-dridma_top_nav {
         position: fixed !important; top: 3.75rem; left: 50%;
         transform: translateX(-50%); width: 100%; max-width: 1100px;
@@ -193,10 +193,6 @@ st.markdown("""
     }
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button {
         min-height: 34px; padding: 2px 0;
-    }
-    .dridma-topline { margin-top: 84px !important; }
-    .block-container:has(.st-key-dridma_top_nav):not(:has(.st-key-dridma_sub_nav_row)) .dridma-topline {
-        margin-top: 44px !important;
     }
 
     div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button {
@@ -226,10 +222,6 @@ st.markdown("""
         max-height: 52px !important; margin: 0 !important; padding: 0 !important;
     }
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row { margin: 0 !important; }
-    .dridma-topline { margin-top: 100px !important; }
-    .block-container:has(.st-key-dridma_top_nav):not(:has(.st-key-dridma_sub_nav_row)) .dridma-topline {
-        margin-top: 60px !important;
-    }
 
 </style>
 """, unsafe_allow_html=True)
@@ -754,7 +746,6 @@ with st.container(key="dridma_top_nav"):
                        use_container_width=True, on_click=set_navigation, args=("dridma_main_menu", option))
     secondary_slot = st.empty()
 
-st.markdown('<div class="dridma-topline"></div>', unsafe_allow_html=True)
 if LOGO.is_file():
     left, center, right = st.columns([1, 3, 1], vertical_alignment="center")
     with center:
