@@ -213,6 +213,24 @@ st.markdown("""
     div.st-key-dridma_top_nav .st-key-dridma_main_nav_row [data-testid="stVerticalBlock"] { justify-content: center; }
 
 
+
+    /* El contenedor de st.empty añade un bloque vertical intermedio. */
+    div.st-key-dridma_top_nav,
+    div.st-key-dridma_top_nav [data-testid="stVerticalBlock"],
+    div.st-key-dridma_top_nav [data-testid="stLayoutWrapper"],
+    div.st-key-dridma_top_nav [data-testid="stVerticalBlockBorderWrapper"] {
+        gap: 0 !important; row-gap: 0 !important;
+    }
+    div.st-key-dridma_top_nav .st-key-dridma_main_nav_row {
+        height: 52px !important; min-height: 52px !important;
+        max-height: 52px !important; margin: 0 !important; padding: 0 !important;
+    }
+    div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row { margin: 0 !important; }
+    .dridma-topline { margin-top: 100px !important; }
+    .block-container:has(.st-key-dridma_top_nav):not(:has(.st-key-dridma_sub_nav_row)) .dridma-topline {
+        margin-top: 60px !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
