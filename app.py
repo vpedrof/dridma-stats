@@ -155,22 +155,22 @@ st.markdown("""
         font-weight: 750; border-top: 2px solid #AEBBD0;
     }
 
-    div.st-key-dridma_top_nav { width: 100%; background: white; border-bottom: 1px solid #DDE4EE; }
+    div.st-key-dridma_top_nav { width: 100%; background: #09244D; border-bottom: 1px solid #DDE4EE; }
     div.st-key-dridma_top_nav [data-testid="stVerticalBlock"] { gap: 0 !important; }
     div.st-key-dridma_top_nav [data-testid="stHorizontalBlock"] { gap: 0 !important; flex-wrap: nowrap !important; }
     div.st-key-dridma_top_nav [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; width: 0 !important; }
-    div.st-key-dridma_top_nav button { width: 100%; border: 0; border-radius: 0; color: #09244D; background: white; padding: 6px 0; min-height: 42px; }
-    div.st-key-dridma_top_nav button[kind="primary"] { color: #FF6500; background: white; border-top: 3px solid #FF6500; }
+    div.st-key-dridma_top_nav button { width: 100%; border: 0; border-radius: 0; color: #FFFFFF; background: #09244D; padding: 6px 0; min-height: 42px; }
+    div.st-key-dridma_top_nav button[kind="primary"] { color: #FF6500; background: #09244D; border-top: 3px solid #FF6500; }
     div.st-key-dridma_top_nav button p { font-size: clamp(10px, 2.8vw, 14px); white-space: nowrap; }
     div.st-key-dridma_top_nav button [data-testid="stMarkdownContainer"] { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     div.st-key-dridma_top_nav button:hover { color: #FF6500; }
 
-    /* Menú secundario: contraste azul marino y selección naranja. */
+    /* Menú secundario: fondo blanco y selección naranja. */
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row {
-        background: #09244D; padding: 4px 6px;
+        background: #FFFFFF; padding: 4px 6px;
     }
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button {
-        background: #09244D; color: #FFFFFF; border: 0; border-radius: 6px;
+        background: #FFFFFF; color: #09244D; border: 0; border-radius: 6px;
     }
     div.st-key-dridma_top_nav .st-key-dridma_sub_nav_row button[kind="primary"] {
         background: #FF6500; color: #FFFFFF; border: 0;
@@ -186,7 +186,7 @@ st.markdown("""
         position: fixed !important; top: 3.75rem; left: 50%;
         transform: translateX(-50%); width: 100%; max-width: 1100px;
         box-sizing: border-box; padding: 0 .85rem; z-index: 999;
-        background: #FFFFFF; box-shadow: 0 3px 10px #09244D18;
+        background: #09244D; box-shadow: 0 3px 10px #09244D18;
     }
     div.st-key-dridma_top_nav .st-key-dridma_main_nav_row button {
         min-height: 58px; padding: 5px 0;
